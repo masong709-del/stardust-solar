@@ -70,7 +70,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <div className="md:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="font-bold text-xl text-blue-900">Performance Metrics</h3>
+            <h3 className="font-bold text-xl text-blue-900">Pewfowmance Metwics</h3>
             <span className="text-xs font-bold text-slate-400 uppercase">
               {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </span>
