@@ -13,14 +13,18 @@ import Resources from './components/Resources/Resources'
 import CustomerTracker from './components/CustomerTracker/CustomerTracker'
 import CommissionCalc from './components/CommissionCalc/CommissionCalc'
 import Leaderboard from './components/Leaderboard/Leaderboard'
+import AudioDriller from './components/AudioDriller/AudioDriller'
+import EstimateBuilder from './components/EstimateBuilder/EstimateBuilder'
 
 const SECTIONS = {
   welcome: Dashboard,
   tech: SolarTech101,
   script: ScriptBuilder,
+  audio: AudioDriller,
   objections: ObjectionBuster,
   ops: FieldOps,
   sketch: SiteSketcher,
+  estimate: EstimateBuilder,
   library: Resources,
   customers: CustomerTracker,
   commission: CommissionCalc,

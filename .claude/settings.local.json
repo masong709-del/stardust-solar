@@ -3,7 +3,8 @@
     "allow": [
       "Bash(ls -la /Users/dominikrivard/Documents/Code/stardust-solar/.env*)",
       "Bash(git remote set-url origin https://github.com/masong709-del/stardust-solar.git)",
-      "Bash(git push origin main)"
+      "Bash(git push origin main)",
+      "Bash(xargs cat)"
     ]
   }
 }

@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stardust Solar Academy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .sidebar-link.active { background-color: #facc15; color: #1e3a8a; font-weight: bold; }
+        .content-section { display: none; }
+        .content-section.active { display: block; animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .flip-card { perspective: 1000px; cursor: pointer; }
+        .flip-card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+        .flipped .flip-card-inner { transform: rotateY(180deg); }
+        .hover-flip-card { perspective: 1000px; cursor: pointer; }
+        .hover-flip-card:hover .flip-card-inner { transform: rotateY(180deg); }
+        
+        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; border-radius: 1rem; border: 4px solid #facc15; text-align: center; }
+        .card-front { background: white; color: #1e3a8a; font-weight: bold; }
+        .card-back { background: #1e3a8a; color: white; transform: rotateY(180deg); overflow-y: auto; }
+        
+        .checkpoint-reached { color: #ea580c !important; font-weight: 900 !important; }
+        .checkpoint-icon-reached { color: #ea580c !important; transform: scale(1.2); transition: all 0.3s; }
+
+        .blueprint-bg { background-color: #f8fafc; background-image: linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px); background-size: 20px 20px; }
+        .tool-active { background-color: #1e3a8a !important; color: white !important; border-color: #1e3a8a !important; }
+        
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .recording-pulse { animation: pulse-red 1.5s infinite; }
+    </style>
+</head>
+<body class="bg-slate-50 flex h-screen overflow-hidden font-sans text-slate-900">
+
+    <aside class="w-72 bg-blue-900 text-white flex flex-col shadow-xl z-50 shrink-0">
+        <div class="p-6 border-b border-blue-800">
+            <h1 class="text-2xl font-black tracking-tighter text-yellow-400 italic">STARDUST SOLAR</h1>
+            <p class="text-[10px] uppercase tracking-widest text-blue-300">Temiskaming Branch</p>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+            
+            <p class="text-[10px] font-bold text-blue-400 px-3 py-2 uppercase tracking-widest">Sales Drilling</p>
+            <button onclick="nav('script')" id="btn-script" class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-comment-dots w-5"></i> Script Builder</button>
+            <button onclick="nav('objections')" id="btn-objections" class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-shield-alt w-5"></i> Battle Cards</button>
+            <button onclick="nav('driller')" id="btn-driller" class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-microphone-alt w-5"></i> Audio Practice</button>
+            
+            <p class="text-[10px] font-bold text-blue-400 px-3 py-2 mt-4 uppercase tracking-widest">Field Tools</p>
+            <button onclick="nav('estimate')" id="btn-estimate" class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-file-invoice w-5"></i> Estimate Builder</button>
+            <button onclick="nav('ops')" id="btn-ops" class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-camera w-5"></i> Survey Photos</button>
+            <button onclick="nav('sketch')" id="btn-sketch" class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-drafting-compass w-5"></i> Site Sketcher</button>
+            
+            <p class="text-[10px] font-bold text-blue-400 px-3 py-2 mt-4 uppercase tracking-widest">Learning & Resources</p>
+            <button onclick="nav('tech')" id="btn-tech" class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-bolt w-5"></i> Solar Tech 101</button>
+            <button onclick="nav('library')" id="btn-library" class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-folder-open w-5"></i> Resource Library</button>
+
+            <p class="text-[10px] font-bold text-blue-400 px-3 py-2 mt-4 uppercase tracking-widest">Performance</p>
+            <button onclick="nav('welcome')" id="btn-welcome" class="sidebar-link active w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-home w-5"></i> Rep Dashboard</button>
+            <button onclick="nav('calculator')" id="btn-calculator" class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 text-green-400"><i class="fas fa-money-bill-wave w-5"></i> Commission Pay</button>
+            <button onclick="nav('leaderboard')" id="btn-leaderboard" class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3"><i class="fas fa-trophy w-5"></i> Leaderboard</button>
+
+        </nav>
+
+        <div class="p-4 bg-blue-950 text-[10px] text-blue-400 border-t border-blue-800">
+            OWNER: MASON | v12.2 UX Menu
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+
+        <section id="sec-welcome" class="content-section active max-w-5xl mx-auto">
+            <h2 class="text-4xl font-black text-blue-900 mb-8">Rep Dashboard</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <div class="md:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-6"><h3 class="font-bold text-xl text-blue-900">Performance Metrics</h3><span class="text-xs font-bold text-slate-400 uppercase" id="currentDate">Date</span></div>
+                    <div class="grid grid-cols-2 gap-8 mb-8">
+                        <div class="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100"><label class="text-[10px] font-black uppercase text-slate-500 tracking-wider">Doors Knocked</label><div class="flex items-center justify-between"><button onclick="adjGoal('knocks', -1)" class="w-10 h-10 rounded-full bg-white border shadow-sm text-blue-900 font-bold hover:bg-slate-100 transition">-</button><span id="count-knocks" class="text-4xl font-black text-blue-900">0</span><button onclick="adjGoal('knocks', 1)" class="w-10 h-10 rounded-full bg-yellow-400 text-blue-900 font-bold hover:bg-yellow-300 transition shadow-sm">+</button></div></div>
+                        <div class="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100"><label class="text-[10px] font-black uppercase text-slate-500 tracking-wider">Appointments</label><div class="flex items-center justify-between"><button onclick="adjGoal('apps', -1)" class="w-10 h-10 rounded-full bg-white border shadow-sm text-blue-900 font-bold hover:bg-slate-100 transition">-</button><span id="count-apps" class="text-4xl font-black text-blue-900">0</span><button onclick="adjGoal('apps', 1)" class="w-10 h-10 rounded-full bg-yellow-400 text-blue-900 font-bold hover:bg-yellow-300 transition shadow-sm">+</button></div></div>
+                    </div>
+                    <div class="mb-8">
+                        <div class="flex justify-between items-end mb-4"><label class="text-xs font-black uppercase text-blue-900 tracking-wider">Monthly Deals Closed</label><div class="flex items-center gap-3"><button onclick="adjGoal('deals', -1)" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition">-</button><span id="count-deals" class="text-3xl font-black text-green-600">0</span><button onclick="adjGoal('deals', 1)" class="w-8 h-8 rounded-full bg-green-500 text-white font-bold hover:bg-green-400 transition shadow-sm">+</button></div></div>
+                        <div class="relative w-full bg-slate-100 h-6 rounded-full overflow-visible mt-2"><div id="dealBar" class="bg-gradient-to-r from-green-400 to-green-600 h-full rounded-full transition-all duration-700 ease-out shadow-inner" style="width: 0%"></div><div class="absolute top-0 left-[30%] h-6 w-1 bg-white z-10 border-l border-r border-slate-200"></div><div id="cp1-text" class="absolute top-8 left-[30%] -ml-10 text-center text-[10px] font-bold text-slate-400 transition-colors w-20"><i id="cp1-icon" class="fas fa-money-bill-wave text-slate-300 text-lg mb-1"></i><br>3 Deals<br><span class="text-green-600 font-black">$1K Bonus</span></div><div class="absolute top-0 left-[50%] h-6 w-1 bg-white z-10 border-l border-r border-slate-200"></div><div id="cp2-text" class="absolute top-8 left-[50%] -ml-10 text-center text-[10px] font-bold text-slate-400 transition-colors w-20"><i id="cp2-icon" class="fas fa-chart-line text-slate-300 text-lg mb-1"></i><br>5 Deals<br><span class="text-blue-500 font-black">5% Match</span></div><div class="absolute top-0 left-[70%] h-6 w-1 bg-white z-10 border-l border-r border-slate-200"></div><div id="cp3-text" class="absolute top-8 left-[70%] -ml-10 text-center text-[10px] font-bold text-slate-400 transition-colors w-20"><i id="cp3-icon" class="fas fa-gem text-slate-300 text-lg mb-1"></i><br>7 Deals<br><span class="text-orange-500 font-black">$1.5K Bonus</span></div></div>
+                    </div>
+                    <div class="mt-20 pt-6 border-t border-slate-100 bg-blue-50/50 p-6 rounded-2xl border border-blue-100 shadow-inner">
+                        <div class="flex justify-between items-center mb-4"><h4 class="text-xs font-black uppercase text-blue-900 tracking-wider"><i class="fas fa-chart-pie mr-2"></i>Live Funnel Analytics</h4><span class="text-[10px] font-bold text-blue-400 bg-blue-100 px-2 py-1 rounded uppercase">Target: 7 Deals</span></div>
+                        <div class="grid grid-cols-3 gap-4 text-center"><div><p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Appt Rate</p><p class="text-2xl font-black text-blue-600"><span id="stat-app-rate">0</span>%</p></div><div class="border-l border-r border-blue-100"><p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Close Rate</p><p class="text-2xl font-black text-green-600"><span id="stat-close-rate">0</span>%</p></div><div><p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Doors to Goal</p><p class="text-2xl font-black text-orange-600" id="stat-doors-needed">700</p></div></div>
+                    </div>
+                </div>
+                <div class="bg-blue-900 text-white p-8 rounded-3xl shadow-lg relative overflow-hidden h-full">
+                    <i class="fas fa-lightbulb absolute -right-4 -bottom-4 text-8xl text-blue-800 opacity-50"></i>
+                    <h4 class="font-bold text-yellow-400 mb-4 uppercase text-xs tracking-widest">Mason's Tip</h4>
+                    <p class="text-sm leading-relaxed relative z-10 font-medium">"When someone says 'I'm busy,' don't apologize. Ask: 'Got it, I'm just here for the neighbor's roof—should I come back at 6, or is 7 better?' Give them a choice, not an out."</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-tech" class="content-section max-w-4xl mx-auto">
+            <h2 class="text-4xl font-black text-blue-900 mb-2">Solar Tech 101</h2>
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 relative overflow-hidden mt-8">
+                <div class="w-full bg-slate-100 h-2 rounded-full mb-8"><div id="techProgressBar" class="bg-yellow-400 h-full transition-all duration-500 rounded-full" style="width: 25%"></div></div>
+                <div id="techContent" class="min-h-[400px]"></div>
+                <div class="flex justify-between items-center mt-8 pt-6 border-t border-slate-100">
+                    <button onclick="changeTechStep(-1)" id="btn-tech-prev" class="px-6 py-2 rounded-lg font-bold text-slate-400 hover:text-blue-900 hover:bg-slate-100 transition invisible">← Previous</button>
+                    <button onclick="changeTechStep(1)" id="btn-tech-next" class="px-8 py-3 rounded-xl font-black bg-blue-900 text-white hover:bg-blue-800 transition shadow-md">Next Module →</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-script" class="content-section">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div class="lg:col-span-7 bg-white p-8 rounded-2xl shadow-lg border border-slate-200"><h2 class="text-2xl font-black text-blue-900 mb-6">Interactive D2D Script Builder</h2><div class="space-y-6"><div><label class="block text-xs font-black text-blue-900 uppercase mb-2">1. The Hook</label><select id="hookSelect" class="w-full p-4 border-2 border-slate-100 rounded-xl bg-slate-50 focus:border-yellow-400 outline-none transition" onchange="runAiCoach()"><option value="">-- Choose your Hook --</option><option value="Hey, I'm just stopping by because we're doing some installs for your neighbors down the street...">The Neighbor Hook (Social Proof)</option><option value="Did you see the recent Hydro One rate hike notice for the area? It's hitting everyone pretty hard.">The Utility Hike (Pain Point)</option></select></div><div><label class="block text-xs font-black text-blue-900 uppercase mb-2">2. The Transition</label><select id="transSelect" class="w-full p-4 border-2 border-slate-100 rounded-xl bg-slate-50 focus:border-yellow-400 outline-none transition" onchange="runAiCoach()"><option value="">-- Choose your Transition --</option><option value="Since you have great sun exposure, you're essentially overpaying for power you could be making for $0 down...">Ownership Angle</option><option value="Most people on this street are tired of renting their power and want to lock in a fixed rate instead...">Inflation Protection</option></select></div><div><label class="block text-xs font-black text-blue-900 uppercase mb-2">3. The Soft Close</label><select id="closeSelect" class="w-full p-4 border-2 border-slate-100 rounded-xl bg-slate-50 focus:border-yellow-400 outline-none transition" onchange="runAiCoach()"><option value="">-- Choose your Close --</option><option value="I'm not here to sell you anything today, I just want to see if your house even qualifies. Do you have 5 minutes tomorrow?">The "Qualify" Close</option><option value="I'll be back in the area around 5:00. Would it make sense to show you what your roof can actually generate?">The "Time-Gap" Close</option></select></div><div class="mt-8 p-6 bg-blue-900 text-yellow-400 rounded-xl shadow-inner border-b-4 border-blue-950"><h4 class="text-[10px] uppercase font-black text-blue-300 mb-2">Live Script Preview:</h4><p id="finalScript" class="text-white italic text-lg leading-relaxed">Select options above...</p></div></div></div>
+                <div class="lg:col-span-5 space-y-6">
+                    <div class="bg-slate-900 text-white p-8 rounded-2xl shadow-xl border-t-4 border-green-500">
+                        <div class="flex items-center gap-3 mb-6"><div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div><h3 class="font-bold text-yellow-400 uppercase tracking-widest text-sm">Stardust AI Coach</h3></div>
+                        <div id="aiFeedback" class="text-slate-300 space-y-4 text-sm leading-relaxed"><p>Waiting for you to build a script...</p></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-driller" class="content-section max-w-5xl mx-auto">
+            <div class="text-center mb-8"><h2 class="text-4xl font-black text-blue-900 mb-2">AI Audio Driller</h2><p class="text-slate-500 italic">Record your pitch. The Stardust AI will transcribe and critique your delivery.</p></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white p-8 rounded-3xl shadow-lg border border-slate-200 flex flex-col">
+                    <h4 class="text-xs font-black uppercase text-blue-900 tracking-wider mb-4"><i class="fas fa-tv mr-2"></i>Teleprompter</h4>
+                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 flex-1 flex items-center justify-center text-center shadow-inner mb-6"><p id="driller-prompter" class="text-xl font-medium text-slate-800 leading-relaxed">Your script will appear here.</p></div>
+                    <div class="flex flex-col items-center justify-center p-8 bg-slate-900 rounded-2xl shadow-inner relative overflow-hidden">
+                        <div id="recording-indicator" class="hidden absolute top-4 left-4 flex items-center gap-2"><div class="w-3 h-3 bg-red-500 rounded-full recording-pulse"></div><span class="text-red-400 text-xs font-bold uppercase tracking-widest">Listening...</span></div>
+                        <button id="btn-record" onclick="toggleRecording()" class="bg-red-600 text-white w-20 h-20 rounded-full flex items-center justify-center text-3xl shadow-xl hover:bg-red-500 transition transform hover:scale-105 active:scale-95 z-10"><i class="fas fa-microphone"></i></button>
+                        <p id="record-instruction" class="text-slate-400 text-sm mt-4 font-medium z-10">Tap to start recording</p>
+                        <div id="audio-player-container" class="hidden w-full mt-6 flex flex-col items-center z-10 pt-6 border-t border-slate-700"><audio id="audio-playback" controls class="w-full max-w-sm rounded-lg shadow-md h-10"></audio></div>
+                    </div>
+                </div>
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200"><h4 class="text-xs font-black uppercase text-blue-900 tracking-wider mb-4"><i class="fas fa-quote-left mr-2"></i>Live Transcript</h4><div id="transcript-box" class="bg-slate-50 p-4 rounded-xl border border-slate-200 h-40 overflow-y-auto text-sm text-slate-700 italic">Waiting for audio input...</div></div>
+                    <div class="bg-blue-900 text-white p-8 rounded-3xl shadow-xl relative border-t-4 border-yellow-400">
+                        <div class="flex justify-between items-center mb-6"><h4 class="text-sm font-black uppercase text-yellow-400 tracking-widest"><i class="fas fa-robot mr-2"></i>AI Coach Feedback</h4><button id="btn-play-ai" onclick="playAiVoice()" class="hidden bg-yellow-400 text-blue-900 px-4 py-2 rounded-lg text-xs font-bold shadow hover:bg-yellow-300 transition"><i class="fas fa-volume-up mr-1"></i> Listen</button></div>
+                        <div id="ai-feedback-text" class="text-slate-300 space-y-4 text-sm leading-relaxed font-medium min-h-[100px]">Hit record on the left to get a real-time critique.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-objections" class="content-section max-w-2xl mx-auto text-center">
+            <h2 class="text-3xl font-black text-blue-900 mb-2">Battle Cards</h2><p class="text-slate-500 mb-6 italic">Drill it until you can't get it wrong.</p>
+            <div class="flex flex-wrap justify-center gap-3 mb-8" id="obj-filters"><button onclick="setCategory('All')" class="px-5 py-2 rounded-full text-xs font-bold bg-blue-900 text-white shadow-sm transition">All Cards</button><button onclick="setCategory('Financial')" class="px-5 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition shadow-sm">💰 Financial</button><button onclick="setCategory('Technical')" class="px-5 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition shadow-sm">⚡ Technical</button><button onclick="setCategory('Trust')" class="px-5 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition shadow-sm">🤝 Trust</button></div>
+            <div class="flex justify-between items-center mb-4 px-2"><span class="text-sm font-bold text-slate-400" id="cardCounter">Card 1 of 31</span><button onclick="toggleMastered()" class="text-xs font-bold text-blue-600 hover:text-blue-800 transition bg-blue-50 px-3 py-1 rounded">View Mastered (<span id="masteredCount">0</span>)</button></div>
+            <div id="flashcard" class="flip-card h-80 mb-6" onclick="flipCard()"><div class="flip-card-inner"><div class="card-face card-front" id="qText">Loading...</div><div class="card-face card-back text-lg font-medium p-6" id="aText">Loading...</div></div></div>
+            <div id="actionButtons" class="grid grid-cols-2 gap-4 opacity-50 pointer-events-none transition-opacity duration-300"><button onclick="scoreCard('needsWork')" class="bg-slate-800 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-slate-700 transition transform active:scale-95">🔴 Needs Work</button><button onclick="scoreCard('nailedIt')" class="bg-green-500 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-green-400 transition transform active:scale-95">🟢 Nailed It!</button></div>
+            <div id="masteredList" class="hidden mt-8 text-left bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-4"><h4 class="font-black text-blue-900"><i class="fas fa-check-circle text-green-500 mr-2"></i>Mastered Objections</h4><button onclick="resetMastered()" class="text-xs bg-slate-100 border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-200 font-bold text-slate-600 transition">Reset Deck</button></div><ul id="masteredItems" class="text-sm text-slate-600 space-y-3 list-disc pl-5"></ul></div>
+        </section>
+
+        <section id="sec-ops" class="content-section max-w-6xl mx-auto">
+            <h2 class="text-4xl font-black text-blue-900 mb-8">Site Survey Photos</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-1 bg-white p-6 rounded-3xl shadow-sm border border-slate-200 h-fit">
+                    <h3 class="font-black text-lg text-blue-900 mb-4"><i class="fas fa-list-check mr-2"></i>Required Photos</h3>
+                    <div class="space-y-4 text-sm text-slate-700 font-medium">
+                        <label class="flex items-start gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded transition"><input type="checkbox" class="mt-1 w-4 h-4 accent-blue-900"> <span><b>Main Panel:</b> Clear photo of all breakers.</span></label>
+                        <label class="flex items-start gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded transition"><input type="checkbox" class="mt-1 w-4 h-4 accent-blue-900"> <span><b>Panel Labels:</b> Photo of the panel index.</span></label>
+                        <label class="flex items-start gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded transition"><input type="checkbox" class="mt-1 w-4 h-4 accent-blue-900"> <span><b>Meter & Mast:</b> Wide shot showing clearance.</span></label>
+                        <label class="flex items-start gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded transition"><input type="checkbox" class="mt-1 w-4 h-4 accent-blue-900"> <span><b>Attic Access:</b> Rafter spacing and size.</span></label>
+                        <label class="flex items-start gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded transition"><input type="checkbox" class="mt-1 w-4 h-4 accent-blue-900"> <span><b>Roof Condition:</b> Close-up of shingles.</span></label>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 bg-slate-900 text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
+                    <h3 class="font-black text-2xl text-yellow-400 mb-6"><i class="fas fa-cloud-upload-alt mr-2"></i>Project Uploader</h3>
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-xs uppercase font-bold text-slate-400 mb-2">Project Address / Name</label>
+                            <input type="text" id="upload-project-name" placeholder="e.g. 123 Main St - Smith" class="w-full bg-slate-800 border border-slate-600 rounded-xl p-4 text-white font-bold outline-none focus:border-yellow-400 transition">
+                        </div>
+                        <div class="border-2 border-dashed border-slate-600 rounded-2xl p-10 text-center hover:border-yellow-400 hover:bg-slate-800/50 transition cursor-pointer relative" onclick="document.getElementById('project-files').click()">
+                            <i class="fas fa-camera text-5xl text-slate-500 mb-4"></i>
+                            <p class="text-lg text-slate-300 font-bold mb-1">Click to select photos</p>
+                            <p class="text-xs text-slate-500 uppercase tracking-widest">Images are automatically compressed</p>
+                            <input type="file" id="project-files" multiple accept="image/*" class="hidden" onchange="handlePhotoSelect(event)">
+                        </div>
+                        <div id="upload-preview-container" class="hidden bg-slate-800 p-4 rounded-xl border border-slate-700">
+                            <div class="flex justify-between items-center mb-4">
+                                <p class="text-sm text-yellow-400 font-bold uppercase tracking-widest"><span id="upload-count">0</span> Photos Ready</p>
+                                <button onclick="savePhotoProject()" class="bg-green-500 text-white font-black px-6 py-2 rounded-lg shadow-lg hover:bg-green-400 transition">Save Folder</button>
+                            </div>
+                            <div id="upload-thumbnails" class="flex gap-2 overflow-x-auto pb-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-12">
+                <h3 class="font-black text-2xl text-blue-900 mb-6 border-b border-slate-200 pb-2"><i class="fas fa-folder-open text-yellow-500 mr-2"></i>Saved Projects</h3>
+                <div id="photo-gallery-view" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+        </section>
+
+        <section id="sec-sketch" class="content-section max-w-6xl mx-auto">
+            <div class="flex justify-between items-end mb-6">
+                <div><h2 class="text-4xl font-black text-blue-900 mb-2">Site Sketcher</h2><p class="text-slate-500 italic">Draft roof planes, vents, and dimensions.</p></div>
+                <button onclick="saveSketchToLibrary()" class="bg-green-500 text-white px-6 py-3 rounded-xl font-black shadow hover:bg-green-400 transition transform active:scale-95"><i class="fas fa-save mr-2"></i> Save to Library</button>
+            </div>
+            <div class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 mb-8">
+                <div class="flex flex-wrap gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 items-center justify-between">
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <span class="text-xs font-black uppercase text-slate-400 mr-1">Pitch:</span>
+                        <select id="sketch-pitch" class="border border-slate-300 rounded-lg px-2 py-1 text-sm font-bold text-blue-900 outline-none mr-2">
+                            <option value="">Flat</option><option value="1/12">1/12</option><option value="2/12">2/12</option><option value="3/12">3/12</option><option value="4/12">4/12</option><option value="5/12">5/12</option><option value="6/12" selected>6/12</option><option value="7/12">7/12</option><option value="8/12">8/12</option><option value="9/12">9/12</option><option value="10/12">10/12</option><option value="12/12">12/12</option>
+                        </select>
+                        <select id="sketch-dormer-type" class="border border-slate-300 rounded-lg px-2 py-1 text-sm font-bold text-blue-900 outline-none mr-2"><option value="gable">Gable</option><option value="hip">Hip</option></select>
+                        <div class="w-px bg-slate-300 mx-1 h-6"></div>
+                        <span class="text-xs font-black uppercase text-slate-400 mr-1">Draw:</span>
+                        <button onclick="setSketchTool('rect')" id="tool-rect" class="bg-slate-200 border border-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold transition hover:bg-slate-300 tool-active" title="Roof Plane"><i class="far fa-square"></i></button>
+                        <button onclick="setSketchTool('dormer')" id="tool-dormer" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm font-bold transition hover:bg-slate-100" title="Dormer"><i class="fas fa-home"></i></button>
+                        <button onclick="setSketchTool('circle')" id="tool-circle" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm font-bold transition hover:bg-slate-100" title="Vent/Pipe"><i class="far fa-circle"></i></button>
+                        <button onclick="setSketchTool('line')" id="tool-line" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm font-bold transition hover:bg-slate-100" title="Line"><i class="fas fa-slash"></i></button>
+                        <button onclick="setSketchTool('arrow')" id="tool-arrow" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm font-bold transition hover:bg-slate-100" title="Arrow"><i class="fas fa-location-arrow"></i></button>
+                        <button onclick="setSketchTool('text')" id="tool-text" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm font-bold transition hover:bg-slate-100" title="Text Label"><i class="fas fa-font"></i></button>
+                        <div class="w-px bg-slate-300 mx-1 h-6"></div>
+                        <span class="text-xs font-black uppercase text-slate-400 mx-1">Edit:</span>
+                        <button onclick="setSketchTool('move')" id="tool-move" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm font-bold transition hover:bg-slate-100" title="Move Object"><i class="fas fa-hand-paper"></i></button>
+                        <button onclick="setSketchTool('rotate')" id="tool-rotate" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm font-bold transition hover:bg-slate-100" title="Rotate Object 90°"><i class="fas fa-sync-alt"></i></button>
+                        <button onclick="setSketchTool('erase')" id="tool-erase" class="bg-white border border-slate-200 text-red-500 px-3 py-2 rounded-lg text-sm font-bold transition hover:bg-red-50" title="Erase Object"><i class="fas fa-eraser"></i></button>
+                    </div>
+                    <div class="flex gap-2 mt-2 md:mt-0">
+                        <button onclick="undoSketch()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-bold transition hover:bg-slate-100" title="Undo"><i class="fas fa-undo"></i></button>
+                        <button onclick="redoSketch()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-bold transition hover:bg-slate-100" title="Redo"><i class="fas fa-redo"></i></button>
+                        <button onclick="clearSketch()" class="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-bold transition hover:bg-red-100" title="Clear All"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+                <div class="border-2 border-slate-300 rounded-xl overflow-hidden relative shadow-inner bg-white">
+                    <canvas id="roofCanvas" class="w-full cursor-crosshair touch-none" style="height: 500px; display: block;"></canvas>
+                    <div class="absolute bottom-4 right-4 bg-white/90 p-2 rounded-lg shadow-md border border-slate-200 flex items-center gap-2 backdrop-blur-sm">
+                        <label class="text-[10px] font-black uppercase text-slate-500 tracking-wider">Compass Azimuth (°):</label>
+                        <input type="number" id="compassInput" class="w-16 border border-slate-300 rounded px-2 py-1 text-sm font-bold text-blue-900 outline-none focus:border-yellow-500" value="0" oninput="updateCompass(this.value)">
+                    </div>
+                </div>
+                <div class="mt-6 border-t border-slate-100 pt-6">
+                    <h4 class="font-black text-sm uppercase tracking-widest text-blue-900 mb-4"><i class="fas fa-clipboard-check text-green-500 mr-2"></i>Validation Checklist</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <label class="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer hover:text-blue-900"><input type="checkbox" class="w-5 h-5 accent-green-500 rounded"> Roof faces drawn</label>
+                        <label class="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer hover:text-blue-900"><input type="checkbox" class="w-5 h-5 accent-green-500 rounded"> Direction added</label>
+                        <label class="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer hover:text-blue-900"><input type="checkbox" class="w-5 h-5 accent-green-500 rounded"> Lengths added</label>
+                        <label class="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer hover:text-blue-900"><input type="checkbox" class="w-5 h-5 accent-green-500 rounded"> Obstacles added</label>
+                        <label class="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer hover:text-blue-900"><input type="checkbox" class="w-5 h-5 accent-green-500 rounded"> Rel. measurements</label>
+                        <label class="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer hover:text-blue-900"><input type="checkbox" class="w-5 h-5 accent-green-500 rounded"> Pitch applied</label>
+                        <label class="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer hover:text-blue-900"><input type="checkbox" class="w-5 h-5 accent-green-500 rounded"> Azimuth set</label>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8"><h3 class="text-2xl font-black text-blue-900 mb-4 border-b border-slate-200 pb-2"><i class="fas fa-images mr-2 text-blue-500"></i>Saved Sketches</h3><div id="sketchGallery" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div></div>
+        </section>
+
+        <section id="sec-estimate" class="content-section max-w-6xl mx-auto">
+            <h2 class="text-4xl font-black text-blue-900 mb-8">Estimate Builder</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div class="lg:col-span-7 bg-white p-8 rounded-3xl shadow-lg border border-slate-200">
+                    <h3 class="font-black text-xl text-blue-900 mb-6 border-b border-slate-100 pb-4"><i class="fas fa-sliders-h mr-2"></i>System Specifications</h3>
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label class="block text-xs uppercase font-black text-slate-500 mb-2">System Size (kW DC)</label><input type="number" id="est-kw" value="10" step="0.5" class="w-full p-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-yellow-400 transition" oninput="calculateEstimate()" onchange="calculateEstimate()"></div>
+                            <div><label class="block text-xs uppercase font-black text-slate-500 mb-2">System Type</label><select id="est-type" class="w-full p-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-yellow-400 transition" onchange="updateEstimateLogic()"><option value="grid">Grid-Tied (Net Metering)</option><option value="offgrid">Off-Grid (Stand Alone)</option></select></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label class="block text-xs uppercase font-black text-slate-500 mb-2">Panel Type</label><select id="est-panel" class="w-full p-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-yellow-400 transition" onchange="calculateEstimate()"><option value="longi">Longi LR8 (Standard)</option><option value="jam">JA Solar 500W</option></select></div>
+                            <div><label class="block text-xs uppercase font-black text-slate-500 mb-2">Mounting</label><select id="est-mount" class="w-full p-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-yellow-400 transition" onchange="updateEstimateLogic()"><option value="roof">Roof Mount</option><option value="ground">Ground Mount</option></select></div>
+                        </div>
+                        <div id="est-pitch-container"><label class="block text-xs uppercase font-black text-slate-500 mb-2">Roof Pitch Difficulty</label><select id="est-pitch" class="w-full p-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-yellow-400 transition" onchange="calculateEstimate()"><option value="standard">Standard (up to 6/12)</option><option value="steep">Steep (7/12 to 9/12) +$1,000</option><option value="extreme">Extreme (10/12+) +$2,000</option></select></div>
+                        <div class="p-5 bg-blue-50 border border-blue-100 rounded-xl space-y-4">
+                            <div><label class="block text-xs uppercase font-black text-blue-900 mb-2">Battery Storage Included?</label><select id="est-battery" class="w-full p-3 border-2 border-white rounded-xl bg-white text-blue-900 font-bold outline-none focus:border-yellow-400 transition shadow-sm" onchange="updateEstimateLogic()"><option value="no">No (Solar Only)</option><option value="yes">Yes (Solar + Battery)</option></select></div>
+                            <div><label class="block text-xs uppercase font-black text-blue-900 mb-2">Inverter Architecture</label><select id="est-inverter" class="w-full p-3 border-2 border-white rounded-xl bg-white text-blue-900 font-bold outline-none focus:border-yellow-400 transition shadow-sm" onchange="updateEstimateLogic(true)"><option value="micro">Microinverters (Enphase/APS)</option><option value="pw3">Tesla Powerwall 3 (Integrated)</option><option value="eg4">EG4 Off-Grid System</option></select></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-5">
+                    <div class="bg-slate-900 p-8 rounded-3xl shadow-xl text-white relative border-t-4 border-yellow-400 sticky top-10">
+                        <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4"><h3 class="font-black text-2xl text-yellow-400">Quote Summary</h3><i class="fas fa-file-invoice-dollar text-2xl text-slate-500"></i></div>
+                        
+                        <div class="space-y-4 text-sm font-medium mb-6">
+                            <div class="flex justify-between text-slate-300"><span>System Size:</span> <span class="font-bold text-white"><span id="out-kw">10</span> kW DC</span></div>
+                            <div class="flex justify-between text-slate-300"><span>Turnkey Installation:</span> <span id="out-base" class="font-bold text-white">$0</span></div>
+                            <div class="flex justify-between text-slate-300" id="row-batt" style="display:none;"><span id="label-batt">Storage Upgrade:</span> <span id="out-batt" class="font-bold text-orange-400">+$0</span></div>
+                            <div class="flex justify-between text-slate-300" id="row-adders" style="display:none;"><span>Site Difficulty Adders:</span> <span id="out-adders" class="font-bold text-orange-400">+$0</span></div>
+                        </div>
+                        
+                        <div class="mt-4 pt-6 border-t border-slate-600">
+                            <div class="flex justify-between items-end mb-2">
+                                <span class="text-xs uppercase tracking-widest font-bold text-slate-400">Total System Price</span>
+                                <span id="out-total" class="text-4xl font-black text-yellow-400 tracking-tighter">$0</span>
+                            </div>
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="text-[10px] text-slate-500 uppercase tracking-widest">Before Tax & Rebates</span>
+                                <span class="text-xs font-bold text-slate-400">Cost/Watt: <span id="out-ppw" class="text-white">$0.00</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-leaderboard" class="content-section max-w-5xl mx-auto">
+            <div class="bg-white p-8 rounded-3xl shadow-lg border border-slate-200">
+                <h3 class="font-black text-3xl text-blue-900 mb-2"><i class="fas fa-trophy text-yellow-400 mr-3"></i>Branch Leaderboard</h3>
+                <p class="text-sm text-slate-500 mb-8 italic">Ranked by Hustle Score: Deals (100) + Appts (20) + Knocks (1) + Drills (2)</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead><tr class="border-b-2 border-slate-200 text-xs uppercase tracking-widest text-slate-400"><th class="pb-3 px-4">Rank</th><th class="pb-3 px-4">Rep</th><th class="pb-3 px-4 text-center">Deals</th><th class="pb-3 px-4 text-center">Appts</th><th class="pb-3 px-4 text-center">Knocks</th><th class="pb-3 px-4 text-center">Drills</th><th class="pb-3 px-4 text-right text-blue-600 font-black">Score</th></tr></thead>
+                        <tbody id="leaderboard-body" class="text-lg"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-calculator" class="content-section max-w-5xl mx-auto">
+            <h2 class="text-4xl font-black text-blue-900 mb-8">Commission & Bonus Calculator</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white p-8 rounded-3xl shadow-lg border border-slate-200">
+                    <h3 class="font-black text-2xl text-blue-900 mb-6">Input Variables</h3>
+                    <div class="space-y-6">
+                        <div><label class="block text-sm uppercase font-bold text-slate-500 mb-2">Total Deals Closed</label><input type="number" id="calc-deals" value="0" oninput="calculatePay()" class="w-full bg-slate-50 border-2 border-slate-200 rounded-xl p-4 text-xl font-black text-blue-900 outline-none focus:border-yellow-400 transition"><p class="text-[10px] text-slate-400 mt-2 font-bold tracking-wide uppercase">Syncs with your dashboard automatically</p></div>
+                        <div><label class="block text-sm uppercase font-bold text-slate-500 mb-2">Avg System Revenue ($)</label><input type="number" id="calc-rev" value="30000" oninput="calculatePay()" class="w-full bg-slate-50 border-2 border-slate-200 rounded-xl p-4 text-xl font-black text-blue-900 outline-none focus:border-yellow-400 transition"></div>
+                    </div>
+                </div>
+                <div class="bg-slate-900 p-8 rounded-3xl shadow-xl text-white relative border-t-4 border-green-500 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4"><h3 class="font-black text-xl text-green-400"><i class="fas fa-file-invoice-dollar mr-2"></i>Projected Payout</h3><span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Gross Pay</span></div>
+                        <div class="space-y-4 text-sm font-medium">
+                            <div class="flex justify-between text-slate-400"><span>Total Branch Revenue:</span> <span id="pay-total-rev" class="text-slate-300">$0</span></div>
+                            <div class="flex justify-between text-slate-300"><span>Base Commission Rate:</span> <span id="pay-rate" class="font-bold text-white">3%</span></div>
+                            <div class="flex justify-between text-slate-300"><span>Base Commission:</span> <span id="pay-base" class="font-bold text-white">$0</span></div>
+                            <div class="flex justify-between text-slate-300"><span>3-Deal Bonus (Flat):</span> <span id="pay-bonus3" class="font-bold text-green-400">$0</span></div>
+                            <div class="flex justify-between text-slate-300"><span>7-Deal Bonus (Flat):</span> <span id="pay-bonus7" class="font-bold text-green-400">$0</span></div>
+                        </div>
+                    </div>
+                    <div class="mt-8 pt-6 border-t border-slate-600"><div class="flex justify-between items-end mb-4"><span class="text-xs uppercase tracking-widest font-bold text-slate-400">Total Month Projection</span><span id="pay-total" class="text-4xl font-black text-green-500 tracking-tighter">$0</span></div><div id="pay-insight" class="bg-blue-900/50 border border-blue-800 p-3 rounded-lg text-xs text-blue-300 text-center uppercase tracking-widest font-bold"></div></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-library" class="content-section max-w-4xl mx-auto">
+            <h2 class="text-4xl font-black text-blue-900 mb-2">Resource Library</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mt-8">
+                <a href="#" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center hover:border-blue-500 hover:shadow-md transition group"><i class="fas fa-file-pdf text-4xl text-red-500 mb-4 group-hover:scale-110 transition"></i><h4 class="font-black text-blue-900 text-sm">Client Contract</h4></a>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // ==========================================
+        // 1. NAVIGATION & GENERAL LOGIC
+        // ==========================================
+        function nav(id) { 
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active')); 
+            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active')); 
+            document.getElementById('sec-' + id).classList.add('active'); 
+            document.getElementById('btn-' + id).classList.add('active'); 
+            
+            if(id === 'estimate') { setTimeout(() => calculateEstimate(), 100); }
+            if(id === 'driller') {
+                const currentScript = document.getElementById('finalScript').innerText;
+                const prompter = document.getElementById('driller-prompter');
+                if (currentScript === "Select options above...") { prompter.innerHTML = "Your script will appear here. Go back to the Script Builder to create one first!"; } 
+                else { prompter.innerHTML = currentScript; }
+            }
+            if(id === 'ops') { renderPhotoProjects(); }
+            if(id === 'leaderboard') updateLeaderboard();
+            if(id === 'calculator') { document.getElementById('calc-deals').value = goals.deals; calculatePay(); }
+            if(id === 'sketch') { setTimeout(() => { initCanvas(); redrawCanvas(); renderSketchLibrary(); }, 100); }
+        }
+        
+        let goals = JSON.parse(localStorage.getItem('solarGoalsV4')) || {knocks: 0, apps: 0, deals: 0, drills: 0};
+        const MAX_DEALS = 10; const GOAL_DEALS = 7;
+        
+        function adjGoal(type, amt) { goals[type] = Math.max(0, goals[type] + amt); localStorage.setItem('solarGoalsV4', JSON.stringify(goals)); updateGoalDisplay(); }
+        
+        function updateGoalDisplay() { 
+            document.getElementById('count-knocks').innerText = goals.knocks; document.getElementById('count-apps').innerText = goals.apps; document.getElementById('count-deals').innerText = goals.deals; 
+            document.getElementById('dealBar').style.width = Math.min(100, (goals.deals / MAX_DEALS) * 100) + '%'; 
+            
+            if(goals.deals>=3){ document.getElementById('cp1-icon').classList.replace('text-slate-300','text-green-500'); document.getElementById('cp1-text').classList.add('checkpoint-reached'); } else { document.getElementById('cp1-icon').classList.replace('text-green-500','text-slate-300'); document.getElementById('cp1-text').classList.remove('checkpoint-reached'); }
+            if(goals.deals>=5){ document.getElementById('cp2-icon').classList.replace('text-slate-300','text-blue-500'); document.getElementById('cp2-text').classList.add('checkpoint-reached'); } else { document.getElementById('cp2-icon').classList.replace('text-blue-500','text-slate-300'); document.getElementById('cp2-text').classList.remove('checkpoint-reached'); }
+            if(goals.deals>=7){ document.getElementById('cp3-icon').classList.replace('text-slate-300','text-orange-500'); document.getElementById('cp3-text').classList.add('checkpoint-reached'); } else { document.getElementById('cp3-icon').classList.replace('text-orange-500','text-slate-300'); document.getElementById('cp3-text').classList.remove('checkpoint-reached'); }
+
+            const appRate = goals.knocks > 0 ? ((goals.apps / goals.knocks) * 100).toFixed(1) : 0; const closeRate = goals.apps > 0 ? ((goals.deals / goals.apps) * 100).toFixed(1) : 0;
+            const dealsNeeded = Math.max(0, GOAL_DEALS - goals.deals); let doorsPerDeal = 100; if (goals.deals > 0 && goals.knocks > 0) { doorsPerDeal = goals.knocks / goals.deals; } else if (goals.apps > 0 && goals.knocks > 0) { doorsPerDeal = (goals.knocks / goals.apps) * 5; }
+            const doorsNeeded = dealsNeeded === 0 ? 0 : Math.ceil(dealsNeeded * doorsPerDeal);
+            document.getElementById('stat-app-rate').innerText = appRate; document.getElementById('stat-close-rate').innerText = closeRate; document.getElementById('stat-doors-needed').innerText = doorsNeeded;
+            if(document.getElementById('sec-calculator').classList.contains('active')) { document.getElementById('calc-deals').value = goals.deals; calculatePay(); }
+        }
+
+        // ==========================================
+        // 2. SOLAR TECH WIZARD
+        // ==========================================
+        const techModules = [
+            { id: 'value_prop', title: "1. The Value Proposition", content: `<p class="text-slate-600 mb-4">Solar isn't just about saving the environment; it's a financial hedge against inflation. In Ontario, utility rates climb. By installing solar, homeowners replace an unpredictable utility bill with a fixed payment.</p><div class="p-6 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg"><p class="font-bold text-blue-900 mb-2"><i class="fas fa-comment-dollar mr-2"></i>The Core Pitch:</p><p class="italic text-slate-700">"You are renting your power right now at a premium. Solar allows you to own your personal power plant for $0 down, locking in your rate."</p></div>` },
+            { id: 'hardware', title: "2. The Hardware", content: `<h3 class="text-2xl font-bold text-blue-900 mb-2">Core System Components</h3><p class="text-slate-500 mb-6 italic">Hover over the cards to see how the energy flows from the roof to the grid.</p><div class="grid grid-cols-2 md:grid-cols-4 gap-4"><div class="hover-flip-card h-56"><div class="flip-card-inner"><div class="card-face card-front"><i class="fas fa-solar-panel text-4xl text-blue-900 mb-2"></i><span class="text-sm">Solar Panels</span></div><div class="card-face card-back text-xs text-left p-4"><p class="font-bold text-yellow-400 mb-1">The Generators</p>Captures photons to generate DC power. We use Tier-1 Monocrystalline panels.</div></div></div><div class="hover-flip-card h-56"><div class="flip-card-inner"><div class="card-face card-front"><i class="fas fa-server text-4xl text-blue-900 mb-2"></i><span class="text-sm">Inverter</span></div><div class="card-face card-back text-xs text-left p-4"><p class="font-bold text-yellow-400 mb-1">The Brains</p>Converts raw DC power from the panels into usable AC power for your home.</div></div></div><div class="hover-flip-card h-56"><div class="flip-card-inner"><div class="card-face card-front"><i class="fas fa-tachometer-alt text-4xl text-blue-900 mb-2"></i><span class="text-sm">Bi-Directional Meter</span></div><div class="card-face card-back text-xs text-left p-4"><p class="font-bold text-yellow-400 mb-1">The Accountant</p>Spins forward when pulling grid power, and backward when sending excess out.</div></div></div><div class="hover-flip-card h-56"><div class="flip-card-inner"><div class="card-face card-front"><i class="fas fa-car-battery text-4xl text-blue-900 mb-2"></i><span class="text-sm">Battery (Optional)</span></div><div class="card-face card-back text-xs text-left p-4"><p class="font-bold text-yellow-400 mb-1">The Vault</p>Stores excess DC solar power for nighttime use and backup power.</div></div></div></div>` },
+            { id: 'pv_effect', title: "3. The PV Effect", content: `<p class="text-slate-600 mb-4">It's called the Photovoltaic (PV) Effect. When sunlight hits the solar panels, it excites electrons in the silicon cells.</p><div class="mt-4 p-6 border border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center w-full shadow-inner"></div>` },
+            { id: 'net_metering', title: "4. Net Metering", content: `<p class="text-slate-600 mb-4">Think of the provincial grid as an infinite, invisible battery. In the summer, your solar system will likely produce more power than your home uses...</p><div class="mt-4 p-6 border border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center w-full shadow-inner"><img src="image_fc18fa.jpg" alt="Net Metering Diagram" class="w-full max-w-lg rounded-lg shadow-md mb-3 border border-slate-200"><p class="text-xs text-slate-400 font-bold uppercase tracking-widest mt-2">Grid Integration & Credit Banking</p></div>` }
+        ];
+        let currentTechStep = 0;
+        function renderTechModule() {
+            document.getElementById('techContent').innerHTML = `<p class="text-xs font-black tracking-widest text-yellow-500 uppercase mb-2">${techModules[currentTechStep].title}</p>${techModules[currentTechStep].content}`;
+            document.getElementById('techProgressBar').style.width = (((currentTechStep + 1) / techModules.length) * 100) + '%';
+            document.getElementById('btn-tech-prev').classList.toggle('invisible', currentTechStep === 0);
+            if(currentTechStep === techModules.length - 1) { document.getElementById('btn-tech-next').innerText = "Complete Module ✓"; document.getElementById('btn-tech-next').className = "px-8 py-3 rounded-xl font-black bg-green-500 text-white hover:bg-green-400 transition shadow-md"; } 
+            else { document.getElementById('btn-tech-next').innerText = "Next Module →"; document.getElementById('btn-tech-next').className = "px-8 py-3 rounded-xl font-black bg-blue-900 text-white hover:bg-blue-800 transition shadow-md"; }
+        }
+        function changeTechStep(dir) { currentTechStep += dir; if(currentTechStep < 0) currentTechStep = 0; if(currentTechStep >= techModules.length) { currentTechStep = techModules.length - 1; nav('script'); return; } renderTechModule(); }
+
+        // ==========================================
+        // 3. SCRIPT BUILDER AI LOGIC
+        // ==========================================
+        function runAiCoach() {
+            const h = document.getElementById('hookSelect').value; const t = document.getElementById('transSelect').value; const c = document.getElementById('closeSelect').value; const ai = document.getElementById('aiFeedback');
+            if(!h && !t && !c) return;
+            document.getElementById('finalScript').innerText = `"${h} ${t} ${c}"`;
+            let advice = "";
+            if(h.includes("neighbor")) advice += "<div class='p-3 bg-green-900/30 border-l-2 border-green-500 text-green-300 mb-3 italic'><b>AI COACH:</b> The Neighbor Hook builds 'Social Proof' instantly. This is our highest converting opener.</div>";
+            if(h.includes("Hydro One")) advice += "<div class='p-3 bg-blue-900/30 border-l-2 border-blue-400 text-blue-300 mb-3 italic'><b>AI COACH:</b> Using a common enemy (Hydro One) creates an instant bond with the homeowner.</div>";
+            if(c.includes("not here to sell")) advice += "<div class='p-3 bg-yellow-900/30 border-l-2 border-yellow-500 text-yellow-200 mb-3 italic'><b>AI COACH:</b> Warning: Homeowners know you're selling. Pivot to 'I'm just the surveyor' to lower pressure.</div>";
+            ai.innerHTML = advice || "<p>Keep selecting options to refine your flow...</p>";
+        }
+
+        // ==========================================
+        // 4. AI AUDIO DRILLER (WEB SPEECH API)
+        // ==========================================
+        let mediaRecorder; let audioChunks = []; let recognition; let finalTranscriptStr = ''; let lastAiMessage = '';
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition(); recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-US'; 
+            recognition.onresult = (event) => {
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) { finalTranscriptStr += event.results[i][0].transcript + " "; } else { interim += event.results[i][0].transcript; }
+                }
+                document.getElementById('transcript-box').innerHTML = `<span class="text-slate-800">${finalTranscriptStr}</span><span class="text-slate-400 italic">${interim}</span>`;
+            };
+            recognition.onerror = (event) => {
+                let box = document.getElementById('transcript-box');
+                if(event.error === 'not-allowed') box.innerHTML = "<span class='text-red-500 font-bold'>Error: Microphone blocked by browser. Open file via localhost server.</span>";
+                else if (event.error === 'network') box.innerHTML = "<span class='text-orange-500 font-bold'>Error: Transcription requires an internet connection.</span>";
+            };
+            recognition.onend = () => { if (mediaRecorder && mediaRecorder.state === 'recording') { try { recognition.start(); } catch(e) {} } };
+        }
+        async function initAudio() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = e => { audioChunks.push(e.data); };
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        document.getElementById('audio-playback').src = URL.createObjectURL(audioBlob);
+                        document.getElementById('audio-player-container').classList.remove('hidden');
+                        document.getElementById('recording-indicator').classList.add('hidden');
+                        document.getElementById('audio-visualizer').classList.add('hidden');
+                        audioChunks = []; analyzeTranscript(finalTranscriptStr);
+                    };
+                } catch(err) { alert("Microphone access denied. You must allow microphone permissions."); }
+            } else { alert("Recording not supported in this browser."); }
+        }
+        function toggleRecording() {
+            if (!mediaRecorder) { initAudio().then(() => { if(mediaRecorder) startRecording(); }); return; }
+            if (mediaRecorder.state === 'inactive') { startRecording(); } else { stopRecording(); }
+        }
+        function startRecording() {
+            audioChunks = []; finalTranscriptStr = '';
+            document.getElementById('transcript-box').innerHTML = "<span class='text-slate-400 italic'>Listening... Speak clearly.</span>";
+            document.getElementById('ai-feedback-text').innerHTML = "Analyzing audio stream...";
+            document.getElementById('btn-play-ai').classList.add('hidden');
+            window.speechSynthesis.cancel(); 
+            mediaRecorder.start();
+            if(recognition) { try { recognition.start(); } catch(e) {} }
+            document.getElementById('btn-record').innerHTML = '<i class="fas fa-stop"></i>';
+            document.getElementById('btn-record').classList.replace('bg-red-600', 'bg-slate-800');
+            document.getElementById('btn-record').classList.replace('hover:bg-red-500', 'hover:bg-slate-700');
+            document.getElementById('record-instruction').innerText = "Tap to stop & analyze";
+            document.getElementById('recording-indicator').classList.remove('hidden');
+            document.getElementById('audio-visualizer').classList.remove('hidden');
+            document.getElementById('audio-player-container').classList.add('hidden'); 
+        }
+        function stopRecording() {
+            mediaRecorder.stop();
+            if(recognition) recognition.stop();
+            document.getElementById('btn-record').innerHTML = '<i class="fas fa-microphone"></i>';
+            document.getElementById('btn-record').classList.replace('bg-slate-800', 'bg-red-600');
+            document.getElementById('btn-record').classList.replace('hover:bg-slate-700', 'hover:bg-red-500');
+            document.getElementById('record-instruction').innerText = "Tap to record again";
+        }
+        function analyzeTranscript(text) {
+            let lowerText = text.toLowerCase(); let feedbackHTML = ""; let voiceScript = "";
+            if (!text || text.trim().split(/\s+/).length < 5) {
+                feedbackHTML = "<p class='text-red-300'>⚠️ <b>Too short or transcriber failed.</b> Make sure your microphone is working and you read the full script.</p>";
+                voiceScript = "That recording was too short to analyze, or I couldn't hear you clearly.";
+            } else {
+                const fillers = (lowerText.match(/\bum\b|\buh\b|\blike\b/g) || []).length;
+                if (fillers > 2) {
+                    feedbackHTML += `<p class='mb-2'>🔴 <b>Confidence Check:</b> I counted ${fillers} filler words (um, uh, like). Take a breath instead of filling the silence.</p>`;
+                    voiceScript += `Watch your filler words. I counted ${fillers} instances of um or uh. Remember, a pause is more powerful than an um. `;
+                } else {
+                    feedbackHTML += `<p class='mb-2 text-green-400'>🟢 <b>Clean Delivery:</b> Excellent job avoiding filler words.</p>`;
+                    voiceScript += `Great job avoiding filler words. Your delivery sounded clean. `;
+                }
+                if (lowerText.includes("maybe") || lowerText.includes("kind of") || lowerText.includes("just wanted to")) {
+                    feedbackHTML += `<p class='mb-2'>🔴 <b>Weak Framing:</b> Avoid saying 'maybe' or 'kind of'. Speak in absolutes.</p>`;
+                    voiceScript += `I heard some weak phrasing. You are the expert representing Stardust Solar. Speak with absolute certainty. `;
+                }
+                if (lowerText.includes("qualify") || lowerText.includes("own") || lowerText.includes("hydro one") || lowerText.includes("savings")) {
+                    feedbackHTML += `<p class='mb-2 text-green-400'>🟢 <b>Strong Triggers:</b> Great job hitting your key value words.</p>`;
+                    voiceScript += `You hit some excellent psychological triggers in that pitch. `;
+                }
+                feedbackHTML += `<p class='mt-4 pt-4 border-t border-blue-800 text-yellow-200 italic'><b>Coach's Note:</b> Play your audio back. Do you sound like a helpful neighbor?</p>`;
+                voiceScript += `Listen to your playback. Make sure your tone sounds like a helpful neighbor, not a pushy salesman.`;
+            }
+            document.getElementById('ai-feedback-text').innerHTML = feedbackHTML;
+            lastAiMessage = voiceScript;
+            document.getElementById('btn-play-ai').classList.remove('hidden');
+        }
+        function playAiVoice() {
+            if (!lastAiMessage) return;
+            window.speechSynthesis.cancel(); 
+            const utterance = new SpeechSynthesisUtterance(lastAiMessage);
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v => v.lang.includes('en-') && v.name.includes('Google'));
+            if(preferredVoice) utterance.voice = preferredVoice;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // ==========================================
+        // 5. OBJECTION BUSTER (31 CARDS)
+        // ==========================================
+        const allObjections = [
+            {cat: 'Financial', q: "It's too expensive.", a: "I hear you. But you aren't actually adding a new bill; you’re just replacing an unpredictable, rising expense with a fixed, cheaper one that eventually disappears."},
+            {cat: 'Financial', q: "I want to wait for prices to drop.", a: "Prices for panels have stabilized, but the incentives are what fluctuate. Waiting usually costs more in lost energy savings than you’d save on hardware."},
+            {cat: 'Financial', q: "I don't want a lien on my house.", a: "It’s not a lien on the home; it’s a UCC-1 filing on the equipment itself. It’s no different than financing a high-end HVAC system—it stays with the tech."},
+            {cat: 'Financial', q: "What if I move in two years?", a: "Studies show homes with solar sell faster and for a premium. You aren't losing that money; you're building equity in the home rather than giving it to Hydro One."},
+            {cat: 'Financial', q: "Interest rates are too high right now.", a: "Utility rates are rising faster than interest rates. Plus, you're locking in a fixed payment. You can't refinance your utility bill, but you can always pay this off early if rates drop."},
+            {cat: 'Financial', q: "My hydro bill isn't even that high.", a: "That's great! But even a $150 bill turns into $54,000 over 25 years with standard inflation. Why rent that power when you can own it for the same monthly cost?"},
+            {cat: 'Financial', q: "I don't have the cash for a down payment.", a: "That's the best part. This is a bill-swap program. It requires $0 out of pocket to start producing your own power."},
+            {cat: 'Financial', q: "Will this increase my property taxes?", a: "No. In Ontario, adding a renewable energy system to your primary residence does not increase your property tax assessment."},
+            {cat: 'Financial', q: "What are the hidden maintenance fees?", a: "There are no moving parts, so maintenance is virtually zero. Plus, our Tier-1 panels come with a 25-year performance warranty."},
+            {cat: 'Financial', q: "I'm on a fixed income/pension.", a: "That is exactly why you need solar. A fixed income requires fixed expenses. Hydro One will keep raising rates; solar locks your energy cost in stone."},
+            {cat: 'Technical', q: "I need a new roof first.", a: "Actually, this is the best time to talk. We can often bundle the roof replacement into the solar project financing so you only have one payment."},
+            {cat: 'Technical', q: "Solar panels are ugly.", a: "Curb appeal matters. That’s why we use 'all-black' sleek profiles with hidden racking. Neighbors usually just notice that you don't have a power bill anymore."},
+            {cat: 'Technical', q: "I'll just wait for battery tech to get better.", a: "The panels are the engine; the battery is just the gas tank. Start saving with the 'engine' now and add the 'tank' later. The grid acts as your free battery right now."},
+            {cat: 'Technical', q: "What if the panels break or it's cloudy?", a: "They can withstand 1-inch hail at 50 mph. As for clouds, UV rays still penetrate. Germany is a global solar leader and they get way less sun than Ontario."},
+            {cat: 'Technical', q: "It snows too much here in the winter.", a: "We design the system based on 'annual yield' to account for winter. Plus, the dark glass of the panels heats up and sheds snow much faster than regular shingles."},
+            {cat: 'Technical', q: "My electrical panel is too old (fuses/100 Amp).", a: "No problem. We actually handle the electrical service upgrade as part of the installation process. It upgrades your home's safety while going solar."},
+            {cat: 'Technical', q: "The technology will be obsolete in 5 years.", a: "It's an energy generator, not an iPhone. A 2025 panel generates electricity exactly the same way a 2030 panel will. Waiting just means you keep paying the utility company."},
+            {cat: 'Technical', q: "I have too many trees.", a: "You might, but let's not guess. Let our design team run a free satellite shading analysis. If the math doesn't make sense, we won't install it."},
+            {cat: 'Technical', q: "Does this mean I'm off the grid?", a: "No, you want to stay connected! Under Net Metering, the grid acts as a giant battery, storing your excess summer power to use during the winter."},
+            {cat: 'Technical', q: "Will this attract lightning?", a: "That's a common myth. The system is fully grounded by a licensed electrician to code. It is no more likely to be struck than your chimney."},
+            {cat: 'Technical', q: "What happens during a power outage?", a: "For safety reasons, standard grid-tied systems shut down so they don't electrocute line workers. If you want backup power, we simply add a battery to the system."},
+            {cat: 'Technical', q: "Raccoons or squirrels will nest under them.", a: "We install critter guards around the perimeter of the array to ensure nothing gets underneath the panels or chews the wiring."},
+            {cat: 'Trust', q: "I heard solar companies go out of business.", a: "That’s why we use Tier-1 manufacturers with linear power warranties. Even if an installer vanishes, the manufacturer guarantees the equipment performance for 25 years."},
+            {cat: 'Trust', q: "I need to talk to my spouse.", a: "Absolutely. Usually, one spouse cares about the tech and the other cares about the checkbook. Let’s make sure we have the exact numbers ready for both of you to review."},
+            {cat: 'Trust', q: "I want to shop around for more quotes.", a: "I encourage that! Just make sure you are comparing 'apples to apples'—check degradation rates and warranties. Cheap quotes usually mean sub-par inverters that fail in year seven."},
+            {cat: 'Trust', q: "Just leave a card.", a: "I could, but the math completely changes based on your roof's angle and orientation. Give me 60 seconds to grab an image of your hydro bill to see if you even qualify."},
+            {cat: 'Trust', q: "I have a friend in the business.", a: "Awesome! Keep him honest. Let me give you a quote so you can make sure he's actually giving you the 'friends and family' rate."},
+            {cat: 'Trust', q: "I don't buy things at the door.", a: "I don't blame you, neither do I. I'm not here to sell you panels today; I'm just the field surveyor checking which roofs qualify for the Net Metering program."},
+            {cat: 'Trust', q: "I read bad reviews online.", a: "There are bad apples in every industry who promise the moon. That's why Stardust is a local franchise right here in Temiskaming. We live and work in the same community."},
+            {cat: 'Trust', q: "We are planning to do renovations soon.", a: "Perfect timing. If you are adding an addition, a hot tub, or an EV, your hydro bill is about to spike. We can design the system now to cover that future electrical load."},
+            {cat: 'Trust', q: "I'm not interested.", a: "I completely understand. Most of your neighbors weren't either until they saw how much the Hydro One rates are projected to increase. Have you seen the recent notice?"}
+        ];
+        let activeDeck = []; let masteredCards = JSON.parse(localStorage.getItem('stardustMasteredCards')) || []; let currentCategory = 'All'; let objIdx = 0; let isFlipped = false;
+
+        function initDeck() {
+            activeDeck = allObjections.filter(obj => (currentCategory === 'All' || obj.cat === currentCategory) && !masteredCards.includes(obj.q));
+            activeDeck.sort(() => Math.random() - 0.5); objIdx = 0; isFlipped = false;
+            document.getElementById('flashcard').classList.remove('flipped'); updateDeckUI(); updateMasteredList();
+        }
+        function setCategory(cat) {
+            currentCategory = cat;
+            document.querySelectorAll('#obj-filters button').forEach(btn => {
+                btn.className = (btn.innerText.includes(cat) || (cat==='All' && btn.innerText==='All Cards')) ? "px-5 py-2 rounded-full text-xs font-bold bg-blue-900 text-white shadow-sm transition" : "px-5 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition shadow-sm";
+            });
+            initDeck();
+        }
+        function updateDeckUI() {
+            document.getElementById('masteredCount').innerText = masteredCards.length;
+            if (activeDeck.length === 0) {
+                document.getElementById('qText').innerHTML = "<span class='text-4xl mb-4 block'>🎉</span><br>Deck Cleared!"; document.getElementById('aText').innerText = "Nothing left to drill here."; document.getElementById('cardCounter').innerText = "0 Cards Left"; document.getElementById('actionButtons').classList.add('opacity-50', 'pointer-events-none'); return;
+            }
+            document.getElementById('cardCounter').innerText = `Card ${objIdx + 1} of ${activeDeck.length}`;
+            document.getElementById('qText').innerText = activeDeck[objIdx].q; document.getElementById('aText').innerText = activeDeck[objIdx].a;
+            document.getElementById('actionButtons').className = isFlipped ? "grid grid-cols-2 gap-4 transition-opacity duration-300" : "grid grid-cols-2 gap-4 opacity-50 pointer-events-none transition-opacity duration-300";
+        }
+        function flipCard() { if (activeDeck.length === 0) return; isFlipped = !isFlipped; document.getElementById('flashcard').classList.toggle('flipped'); updateDeckUI(); }
+        function scoreCard(score) {
+            goals.drills = (goals.drills || 0) + 1; localStorage.setItem('solarGoalsV4', JSON.stringify(goals));
+            if (score === 'nailedIt') { masteredCards.push(activeDeck[objIdx].q); localStorage.setItem('stardustMasteredCards', JSON.stringify(masteredCards)); activeDeck.splice(objIdx, 1); if (objIdx >= activeDeck.length) objIdx = 0; } 
+            else { objIdx = (objIdx + 1) % activeDeck.length; }
+            isFlipped = false; document.getElementById('flashcard').classList.remove('flipped'); setTimeout(() => { updateDeckUI(); updateMasteredList(); }, 300); 
+        }
+        function toggleMastered() { document.getElementById('masteredList').classList.toggle('hidden'); }
+        function updateMasteredList() { document.getElementById('masteredItems').innerHTML = masteredCards.length === 0 ? "<li>No cards mastered yet. Keep drilling!</li>" : masteredCards.map(q => `<li>${q}</li>`).join(''); }
+        function resetMastered() { if(confirm("Bring all mastered cards back into the deck?")) { masteredCards = []; localStorage.setItem('stardustMasteredCards', JSON.stringify(masteredCards)); initDeck(); } }
+
+        // ==========================================
+        // 5.5. SITE SURVEY PHOTO UPLOADER
+        // ==========================================
+        let currentUploadQueue = [];
+        function handlePhotoSelect(event) {
+            const files = event.target.files; if(!files || files.length === 0) return;
+            document.getElementById('upload-preview-container').classList.remove('hidden');
+            const thumbContainer = document.getElementById('upload-thumbnails');
+            document.getElementById('upload-count').innerText = "Compressing...";
+            let processedCount = 0;
+            for(let i=0; i<files.length; i++) {
+                compressImage(files[i], (compressedBase64) => {
+                    currentUploadQueue.push(compressedBase64);
+                    const img = document.createElement('img'); img.src = compressedBase64; img.className = "w-16 h-16 object-cover rounded-lg border-2 border-slate-600 shadow-sm"; thumbContainer.appendChild(img);
+                    processedCount++; if(processedCount === files.length) { document.getElementById('upload-count').innerText = currentUploadQueue.length; }
+                });
+            }
+        }
+        function compressImage(file, callback) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas'); const MAX_WIDTH = 800; let width = img.width; let height = img.height;
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                    callback(canvas.toDataURL('image/jpeg', 0.6)); 
+                }; img.src = e.target.result;
+            }; reader.readAsDataURL(file);
+        }
+        function savePhotoProject() {
+            const nameInput = document.getElementById('upload-project-name').value;
+            if(!nameInput) { alert("Please enter a project name/address."); return; }
+            if(currentUploadQueue.length === 0) { alert("Please select photos first."); return; }
+            let projects = JSON.parse(localStorage.getItem('stardustPhotoProjects')) || [];
+            projects.push({ id: Date.now(), name: nameInput, date: new Date().toLocaleDateString(), images: currentUploadQueue });
+            try {
+                localStorage.setItem('stardustPhotoProjects', JSON.stringify(projects));
+                document.getElementById('upload-project-name').value = ''; document.getElementById('upload-thumbnails').innerHTML = ''; document.getElementById('upload-preview-container').classList.add('hidden'); currentUploadQueue = [];
+                alert("Project Saved Successfully!"); renderPhotoProjects();
+            } catch (e) { alert("Storage limit reached! Please delete old projects to save new ones."); }
+        }
+        function renderPhotoProjects() {
+            const gallery = document.getElementById('photo-gallery-view'); if(!gallery) return;
+            let projects = JSON.parse(localStorage.getItem('stardustPhotoProjects')) || [];
+            if(projects.length === 0) { gallery.innerHTML = "<p class='text-slate-400 italic col-span-3'>No photo projects uploaded yet.</p>"; return; }
+            let html = "";
+            projects.slice().reverse().forEach((proj, index) => {
+                let imgPreviews = proj.images.slice(0, 4).map(img => `<img src="${img}" class="w-full h-16 object-cover rounded shadow-sm border border-slate-200">`).join('');
+                if(proj.images.length > 4) imgPreviews += `<div class="w-full h-16 bg-slate-200 rounded flex items-center justify-center text-xs font-bold text-slate-500 shadow-inner">+${proj.images.length - 4}</div>`;
+                let realIndex = projects.length - 1 - index;
+                html += `<div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col"><div class="flex justify-between items-start mb-4 border-b border-slate-100 pb-3"><div class="flex items-center gap-3"><i class="fas fa-folder text-4xl text-yellow-400 drop-shadow-sm"></i><div><h4 class="font-black text-blue-900 text-sm leading-tight">${proj.name}</h4><p class="text-[10px] text-slate-500 uppercase tracking-widest">${proj.date} • ${proj.images.length} Photos</p></div></div><button onclick="deletePhotoProject(${realIndex})" class="text-red-300 hover:text-red-500 transition"><i class="fas fa-trash"></i></button></div><div class="grid grid-cols-4 gap-2 mb-4">${imgPreviews}</div><button onclick="downloadProjectPhotos(${realIndex})" class="mt-auto w-full bg-blue-50 text-blue-900 text-xs font-bold py-2 rounded-lg hover:bg-blue-100 transition border border-blue-100"><i class="fas fa-download mr-1"></i> Download All</button></div>`;
+            });
+            gallery.innerHTML = html;
+        }
+        function deletePhotoProject(index) {
+            if(confirm("Delete this entire project folder?")) { let projects = JSON.parse(localStorage.getItem('stardustPhotoProjects')) || []; projects.splice(index, 1); localStorage.setItem('stardustPhotoProjects', JSON.stringify(projects)); renderPhotoProjects(); }
+        }
+        function downloadProjectPhotos(index) {
+            let projects = JSON.parse(localStorage.getItem('stardustPhotoProjects')) || []; let proj = projects[index];
+            proj.images.forEach((img, i) => { let link = document.createElement('a'); link.download = `${proj.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_photo_${i+1}.jpg`; link.href = img; link.click(); });
+        }
+
+        // ==========================================
+        // 6. PRO CAD VECTOR SKETCHPAD LOGIC
+        // ==========================================
+        const canvas = document.getElementById('roofCanvas'); const ctx = canvas.getContext('2d'); const GRID = 20; 
+        let canvasW, canvasH; let sketchObjects = []; let historyStack = [[]]; let currentStep = 0;
+        let activeTool = 'rect'; let isDrawingAction = false; let tempObj = null; let movingObjIndex = -1; let dragOffset = {x: 0, y: 0, x2: 0, y2: 0}; let compassAngle = 0;
+        let savedSketches = JSON.parse(localStorage.getItem('stardustSketches')) || [];
+
+        function initCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.style.width = '100%'; canvas.style.height = '500px';
+            canvasW = canvas.offsetWidth; canvasH = canvas.offsetHeight;
+            canvas.width = canvasW * dpr; canvas.height = canvasH * dpr;
+            ctx.scale(dpr, dpr);
+        }
+
+        function saveState() { historyStack = historyStack.slice(0, currentStep + 1); historyStack.push(JSON.parse(JSON.stringify(sketchObjects))); currentStep++; }
+        function undoSketch() { if (currentStep > 0) { currentStep--; sketchObjects = JSON.parse(JSON.stringify(historyStack[currentStep])); redrawCanvas(); } }
+        function redoSketch() { if (currentStep < historyStack.length - 1) { currentStep++; sketchObjects = JSON.parse(JSON.stringify(historyStack[currentStep])); redrawCanvas(); } }
+        function snap(val) { return Math.round(val / GRID) * GRID; }
+        
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            let cx = evt.clientX; let cy = evt.clientY; 
+            if(evt.touches && evt.touches.length > 0) { cx = evt.touches[0].clientX; cy = evt.touches[0].clientY; }
+            return { x: cx - rect.left, y: cy - rect.top };
+        }
+
+        function setSketchTool(tool) {
+            activeTool = tool;
+            document.querySelectorAll('#sec-sketch button').forEach(btn => {
+                if(btn.id && btn.id.startsWith('tool-')) {
+                    btn.classList.remove('tool-active', 'bg-blue-900', 'text-white', 'bg-yellow-500', 'text-yellow-900', 'bg-red-500', 'text-white');
+                    btn.classList.add('bg-white', 'text-slate-600');
+                    if (btn.id === 'tool-erase') btn.classList.add('text-red-500');
+                }
+            });
+            const btn = document.getElementById('tool-' + tool);
+            btn.classList.remove('bg-white', 'text-slate-600', 'text-red-500');
+            if (tool === 'text') { btn.classList.add('tool-active', 'bg-yellow-500', 'text-yellow-900'); } 
+            else if (tool === 'erase') { btn.classList.add('tool-active', 'bg-red-600', 'text-white'); } 
+            else { btn.classList.add('tool-active', 'bg-blue-900', 'text-white'); }
+        }
+        function updateCompass(val) { compassAngle = parseFloat(val) || 0; redrawCanvas(); }
+
+        function drawGrid(ctx) {
+            ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, canvasW, canvasH);
+            ctx.beginPath();
+            for (let x = 0; x <= canvasW; x += GRID) { ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); }
+            for (let y = 0; y <= canvasH; y += GRID) { ctx.moveTo(0, y); ctx.lineTo(canvasW, y); }
+            ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1; ctx.stroke();
+        }
+
+        function drawRoundedRect(ctx, x, y, w, h, r) {
+            if (w < 2 * r) r = w / 2; if (h < 2 * r) r = h / 2;
+            ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath(); return ctx;
+        }
+
+        function drawPitchLabel(ctx, text, x, y) {
+            ctx.font = "bold 14px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            let m = ctx.measureText(text); let pad = 8;
+            ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+            drawRoundedRect(ctx, x - m.width/2 - pad, y - 10 - pad, m.width + pad*2, 20 + pad*2, 10).fill();
+            ctx.lineWidth = 2; ctx.strokeStyle = "#1e3a8a"; ctx.stroke();
+            ctx.fillStyle = "#1e3a8a"; ctx.fillText(text, x, y);
+        }
+
+        function drawRect(ctx, obj) { 
+            ctx.beginPath(); ctx.rect(obj.x, obj.y, obj.w, obj.h); ctx.strokeStyle = '#1e3a8a'; ctx.lineWidth = 3; ctx.fillStyle = 'rgba(30, 58, 138, 0.15)'; ctx.fill(); ctx.stroke(); 
+            if (obj.pitch && obj.pitch !== '') { drawPitchLabel(ctx, obj.pitch, obj.x + obj.w/2, obj.y + obj.h/2); }
+        }
+        function drawCircle(ctx, obj) { 
+            let radius = Math.sqrt(Math.pow(obj.x2 - obj.x, 2) + Math.pow(obj.y2 - obj.y, 2)); ctx.beginPath(); ctx.arc(obj.x, obj.y, radius, 0, Math.PI * 2); ctx.strokeStyle = '#ea580c'; ctx.lineWidth = 3; ctx.fillStyle = 'rgba(234, 88, 12, 0.15)'; ctx.fill(); ctx.stroke(); 
+        }
+        function drawDormer(ctx, obj) { 
+            let rx = Math.min(obj.x, obj.x2); let ry = Math.min(obj.y, obj.y2); let rw = Math.abs(obj.x2 - obj.x); let rh = Math.abs(obj.y2 - obj.y);
+            let cx = rx + rw/2; let cy = ry + rh/2;
+            ctx.beginPath(); ctx.rect(rx, ry, rw, rh); ctx.strokeStyle = '#047857'; ctx.lineWidth = 3; ctx.fillStyle = 'rgba(4, 120, 87, 0.15)'; ctx.fill(); ctx.stroke();
+            
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate((obj.orientation || 0) * 90 * Math.PI / 180);
+            let isSwapped = (obj.orientation === 1 || obj.orientation === 3);
+            let drawW = isSwapped ? rh : rw; let drawH = isSwapped ? rw : rh;
+            let hw = drawW/2; let hh = drawH/2;
+
+            ctx.beginPath();
+            if (obj.dormerType === 'hip') {
+                let ridgeEnd = -hh * 0.3; let frontHip = hh * 0.6;
+                ctx.moveTo(-hw, -hh); ctx.lineTo(0, ridgeEnd); ctx.moveTo(hw, -hh); ctx.lineTo(0, ridgeEnd); 
+                ctx.moveTo(0, ridgeEnd); ctx.lineTo(0, frontHip); 
+                ctx.moveTo(-hw, hh); ctx.lineTo(0, frontHip); ctx.moveTo(hw, hh); ctx.lineTo(0, frontHip); 
+            } else {
+                let ridgeEnd = -hh * 0.4;
+                ctx.moveTo(-hw, -hh); ctx.lineTo(0, ridgeEnd); ctx.moveTo(hw, -hh); ctx.lineTo(0, ridgeEnd); 
+                ctx.moveTo(0, ridgeEnd); ctx.lineTo(0, hh); 
+            }
+            ctx.stroke(); ctx.restore();
+
+            if (obj.pitch && obj.pitch !== '') { drawPitchLabel(ctx, obj.pitch, cx, cy); }
+        }
+        function drawLine(ctx, obj) { ctx.beginPath(); ctx.moveTo(obj.x, obj.y); ctx.lineTo(obj.x2, obj.y2); ctx.strokeStyle = '#1e3a8a'; ctx.lineWidth = 4; ctx.stroke(); }
+        function drawArrow(ctx, obj) { 
+            drawLine(ctx, obj); const headlen = 15; const angle = Math.atan2(obj.y2 - obj.y, obj.x2 - obj.x); ctx.beginPath(); ctx.moveTo(obj.x2, obj.y2); ctx.lineTo(obj.x2 - headlen * Math.cos(angle - Math.PI / 6), obj.y2 - headlen * Math.sin(angle - Math.PI / 6)); ctx.moveTo(obj.x2, obj.y2); ctx.lineTo(obj.x2 - headlen * Math.cos(angle + Math.PI / 6), obj.y2 - headlen * Math.sin(angle + Math.PI / 6)); ctx.stroke(); 
+        }
+        function drawTextData(ctx, obj) { 
+            ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; let m = ctx.measureText(obj.text); let pad = 8; 
+            ctx.fillStyle = "#1e3a8a"; drawRoundedRect(ctx, obj.x - m.width/2 - pad, obj.y - 12 - pad, m.width + pad*2, 24 + pad*2, 8).fill();
+            ctx.fillStyle = "white"; ctx.fillText(obj.text, obj.x, obj.y); 
+        }
+        function drawCompass() { 
+            ctx.save(); ctx.translate(canvasW - 50, canvasH - 50); 
+            ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#cbd5e1'; ctx.stroke(); 
+            let rad = compassAngle * Math.PI / 180;
+            ctx.save(); ctx.rotate(rad); ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(-6, 0); ctx.lineTo(0, 4); ctx.lineTo(6, 0); ctx.closePath(); ctx.fillStyle = '#ea580c'; ctx.fill(); ctx.restore();
+            let nx = 20 * Math.sin(rad); let ny = -20 * Math.cos(rad);
+            ctx.fillStyle = '#1e293b'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('N', nx, ny); 
+            ctx.restore(); 
+        }
+
+        function redrawCanvas() {
+            drawGrid(ctx); 
+            sketchObjects.forEach(obj => { if (obj.type === 'rect') drawRect(ctx, obj); if (obj.type === 'circle') drawCircle(ctx, obj); if (obj.type === 'dormer') drawDormer(ctx, obj); if (obj.type === 'line') drawLine(ctx, obj); if (obj.type === 'arrow') drawArrow(ctx, obj); if (obj.type === 'text') drawTextData(ctx, obj); });
+            if (tempObj) { if (tempObj.type === 'rect') drawRect(ctx, tempObj); if (tempObj.type === 'circle') drawCircle(ctx, tempObj); if (tempObj.type === 'dormer') drawDormer(ctx, tempObj); if (tempObj.type === 'line') drawLine(ctx, tempObj); if (tempObj.type === 'arrow') drawArrow(ctx, tempObj); }
+            drawCompass();
+        }
+
+        function hitTest(pos, obj) {
+            if (obj.type === 'text') { ctx.font = "bold 16px sans-serif"; let m = ctx.measureText(obj.text); return pos.x >= obj.x - (m.width/2) - 10 && pos.x <= obj.x + (m.width/2) + 10 && pos.y >= obj.y - 15 && pos.y <= obj.y + 15; }
+            if (obj.type === 'circle') { let r = Math.sqrt(Math.pow(obj.x2 - obj.x, 2) + Math.pow(obj.y2 - obj.y, 2)); return Math.sqrt(Math.pow(pos.x - obj.x, 2) + Math.pow(pos.y - obj.y, 2)) <= r; }
+            if (obj.type === 'rect' || obj.type === 'dormer') { let rx = Math.min(obj.x, obj.x2); let ry = Math.min(obj.y, obj.y2); let rw = Math.abs(obj.x2 - obj.x); let rh = Math.abs(obj.y2 - obj.y); return pos.x >= rx && pos.x <= rx + rw && pos.y >= ry && pos.y <= ry + rh; } 
+            let pad = 20; let minX = Math.min(obj.x, obj.x2) - pad; let maxX = Math.max(obj.x, obj.x2) + pad; let minY = Math.min(obj.y, obj.y2) - pad; let maxY = Math.max(obj.y, obj.y2) + pad; return pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY;
+        }
+
+        function startAction(e) {
+            e.preventDefault(); const pos = getMousePos(e); const sx = snap(pos.x); const sy = snap(pos.y);
+            
+            if (activeTool === 'text') { 
+                let txt = prompt("Enter measurement or label (e.g. '14 ft', 'Vent'):"); 
+                if (txt && txt.trim() !== "") { sketchObjects.push({ type: 'text', text: txt, x: sx, y: sy }); saveState(); redrawCanvas(); } 
+                return; 
+            }
+            if (activeTool === 'erase') { 
+                for (let i = sketchObjects.length - 1; i >= 0; i--) { if (hitTest(pos, sketchObjects[i])) { sketchObjects.splice(i, 1); saveState(); redrawCanvas(); break; } } 
+                return; 
+            }
+            if (activeTool === 'rotate') {
+                for (let i = sketchObjects.length - 1; i >= 0; i--) {
+                    if (hitTest(pos, sketchObjects[i])) {
+                        if (sketchObjects[i].type === 'dormer') { sketchObjects[i].orientation = ((sketchObjects[i].orientation || 0) + 1) % 4; } 
+                        else if (sketchObjects[i].type === 'rect') { 
+                            let rx = Math.min(sketchObjects[i].x, sketchObjects[i].x2); let ry = Math.min(sketchObjects[i].y, sketchObjects[i].y2); let rw = Math.abs(sketchObjects[i].x2 - sketchObjects[i].x); let rh = Math.abs(sketchObjects[i].y2 - sketchObjects[i].y);
+                            let cx = rx + rw/2; let cy = ry + rh/2; 
+                            sketchObjects[i].x = cx - rh/2; sketchObjects[i].y = cy - rw/2; sketchObjects[i].x2 = cx + rh/2; sketchObjects[i].y2 = cy + rw/2;
+                            sketchObjects[i].w = rh; sketchObjects[i].h = rw;
+                        } 
+                        else if (sketchObjects[i].type === 'line' || sketchObjects[i].type === 'arrow') { let cx = (sketchObjects[i].x + sketchObjects[i].x2)/2; let cy = (sketchObjects[i].y + sketchObjects[i].y2)/2; let dx = sketchObjects[i].x - cx; let dy = sketchObjects[i].y - cy; sketchObjects[i].x = cx - dy; sketchObjects[i].y = cy + dx; sketchObjects[i].x2 = cx + dy; sketchObjects[i].y2 = cy - dx; }
+                        saveState(); redrawCanvas(); break;
+                    }
+                }
+                return;
+            }
+            
+            isDrawingAction = true;
+            if (activeTool === 'move') {
+                movingObjIndex = -1;
+                for (let i = sketchObjects.length - 1; i >= 0; i--) { if (hitTest(pos, sketchObjects[i])) { movingObjIndex = i; dragOffset.x = sx - sketchObjects[i].x; dragOffset.y = sy - sketchObjects[i].y; if(sketchObjects[i].x2 !== undefined) { dragOffset.x2 = sx - sketchObjects[i].x2; dragOffset.y2 = sy - sketchObjects[i].y2; } break; } }
+            } else { 
+                let currentPitch = document.getElementById('sketch-pitch').value;
+                let dType = document.getElementById('sketch-dormer-type').value;
+                tempObj = { type: activeTool, x: sx, y: sy, x2: sx, y2: sy, w: 0, h: 0, pitch: (activeTool === 'rect' || activeTool === 'dormer') ? currentPitch : '', dormerType: dType, orientation: 0 }; 
+            }
+        }
+
+        function moveAction(e) {
+            if (!isDrawingAction) return; e.preventDefault(); const pos = getMousePos(e); const cx = snap(pos.x); const cy = snap(pos.y);
+            if (activeTool === 'move' && movingObjIndex > -1) { let obj = sketchObjects[movingObjIndex]; obj.x = cx - dragOffset.x; obj.y = cy - dragOffset.y; if(obj.x2 !== undefined) { obj.x2 = cx - dragOffset.x2; obj.y2 = cy - dragOffset.y2; } } 
+            else if (tempObj) { if (activeTool === 'rect') { tempObj.w = cx - tempObj.x; tempObj.h = cy - tempObj.y; tempObj.x2 = cx; tempObj.y2 = cy;} else { tempObj.x2 = cx; tempObj.y2 = cy; } }
+            redrawCanvas();
+        }
+
+        function endAction(e) {
+            let stateChanged = false;
+            if (activeTool === 'move' && movingObjIndex > -1) { stateChanged = true; } 
+            else if (activeTool !== 'move' && activeTool !== 'erase' && activeTool !== 'text' && activeTool !== 'rotate' && tempObj) {
+                if (activeTool === 'rect' && Math.abs(tempObj.w) > 0) { sketchObjects.push(tempObj); stateChanged = true; } 
+                else if (activeTool !== 'rect' && (Math.abs(tempObj.x2 - tempObj.x) > 0 || Math.abs(tempObj.y2 - tempObj.y) > 0)) { sketchObjects.push(tempObj); stateChanged = true; }
+            }
+            isDrawingAction = false; tempObj = null; movingObjIndex = -1;
+            if (stateChanged) saveState(); redrawCanvas();
+        }
+
+        function clearSketch() { if(confirm('Clear the entire blueprint?')) { sketchObjects = []; saveState(); redrawCanvas(); } }
+
+        function saveSketchToLibrary() {
+            if (sketchObjects.length === 0) { alert("Nothing to save. Draw something first!"); return; }
+            let name = prompt("Name this sketch (e.g. '123 Main St'):");
+            if (!name) return;
+            redrawCanvas(); 
+            const dataUrl = canvas.toDataURL("image/png");
+            savedSketches.push({ id: Date.now(), name: name, date: new Date().toLocaleDateString(), img: dataUrl });
+            localStorage.setItem('stardustSketches', JSON.stringify(savedSketches));
+            renderSketchLibrary();
+            alert("Saved to library!");
+        }
+
+        function renderSketchLibrary() {
+            const gallery = document.getElementById('sketchGallery');
+            if (savedSketches.length === 0) { gallery.innerHTML = "<p class='text-sm text-slate-400 italic col-span-3'>No sketches saved yet.</p>"; return; }
+            let html = "";
+            savedSketches.forEach((sketch, index) => {
+                html += `<div class="bg-slate-50 border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col group"><div class="h-32 bg-white border border-slate-200 rounded-lg overflow-hidden mb-3 relative flex items-center justify-center"><img src="${sketch.img}" alt="Sketch" class="max-h-full max-w-full object-contain"></div><h4 class="font-black text-blue-900 text-sm truncate">${sketch.name}</h4><p class="text-[10px] text-slate-500 uppercase tracking-widest mb-3">${sketch.date}</p><div class="mt-auto flex gap-2"><button onclick="downloadSketch(${index})" class="flex-1 bg-blue-900 text-white text-xs font-bold py-2 rounded hover:bg-blue-800 transition"><i class="fas fa-download"></i> Save PNG</button><button onclick="deleteSketch(${index})" class="bg-red-100 text-red-600 text-xs font-bold px-3 py-2 rounded hover:bg-red-200 transition"><i class="fas fa-trash"></i></button></div></div>`;
+            });
+            gallery.innerHTML = html;
+        }
+
+        function downloadSketch(index) {
+            let sketch = savedSketches[index]; let link = document.createElement('a'); link.download = `Stardust_Sketch_${sketch.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`; link.href = sketch.img; link.click();
+        }
+
+        function deleteSketch(index) {
+            if(confirm("Delete this saved sketch?")) { savedSketches.splice(index, 1); localStorage.setItem('stardustSketches', JSON.stringify(savedSketches)); renderSketchLibrary(); }
+        }
+
+        setTimeout(() => {
+            initCanvas(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            canvas.addEventListener('mousedown', startAction); canvas.addEventListener('mousemove', moveAction); canvas.addEventListener('mouseup', endAction); canvas.addEventListener('mouseout', endAction);
+            canvas.addEventListener('touchstart', startAction, {passive: false}); canvas.addEventListener('touchmove', moveAction, {passive: false}); canvas.addEventListener('touchend', endAction);
+            redrawCanvas(); renderSketchLibrary();
+        }, 500);
+
+        window.addEventListener('resize', () => { if (document.getElementById('sec-sketch').classList.contains('active')) { initCanvas(); redrawCanvas(); } });
+
+        // ==========================================
+        // 7. ESTIMATE BUILDER LOGIC
+        // ==========================================
+        function updateEstimateLogic(invTrigger = false) {
+            const type = document.getElementById('est-type').value; const batt = document.getElementById('est-battery'); const inv = document.getElementById('est-inverter'); const mount = document.getElementById('est-mount').value; const pitchCont = document.getElementById('est-pitch-container');
+            if (type === 'offgrid') { batt.value = 'yes'; batt.disabled = true; inv.value = 'eg4'; inv.disabled = true; } 
+            else { batt.disabled = false; inv.disabled = false; if(inv.value === 'eg4') inv.value = 'micro'; }
+            if (type === 'grid') {
+                if (invTrigger && inv.value === 'pw3') { batt.value = 'yes'; }
+                else if (!invTrigger && batt.value === 'no') { inv.value = 'micro'; }
+                else if (!invTrigger && batt.value === 'yes') { inv.value = 'pw3'; }
+                if (inv.value === 'eg4') { inv.value = batt.value === 'yes' ? 'pw3' : 'micro'; }
+            }
+            if (mount === 'ground') { pitchCont.style.opacity = '0.3'; document.getElementById('est-pitch').disabled = true; } 
+            else { pitchCont.style.opacity = '1'; document.getElementById('est-pitch').disabled = false; }
+            calculateEstimate();
+        }
+        
+        function calculateEstimate() {
+            // Reverse-engineered pricing model based on provided project estimates
+            const BASE_PPW = 2100; // Base $2.10 / Watt hardware & standard labor
+            const BASE_FEE = 6000; // Flat fee for permits, HQ engineering, shipping, and electrical
+            const JAM_ADDER_PPW = 100; // JA Solar premium
+            
+            const GROUND_MOUNT_ENG = 1000; // Engineering fee
+            const GROUND_MOUNT_PPW = 700; // Approx footing scaling
+            
+            const PITCH_STEEP = 1000;
+            const PITCH_EXTREME = 2000;
+            
+            const PW3_ADDER = 28000; // Retail adder for PW3 + Gateway + Misc
+            const EG4_ADDER = 18500; // Retail adder for EG4 Inverter + 2x Batteries
+
+            const kw = parseFloat(document.getElementById('est-kw').value) || 0; 
+            const panel = document.getElementById('est-panel').value; 
+            const mount = document.getElementById('est-mount').value; 
+            const pitch = document.getElementById('est-pitch').value; 
+            const batt = document.getElementById('est-battery').value; 
+            const inv = document.getElementById('est-inverter').value;
+
+            let basePrice = (kw * BASE_PPW) + BASE_FEE; 
+            let panelPrice = panel === 'jam' ? (kw * JAM_ADDER_PPW) : 0; 
+            let mountPrice = mount === 'ground' ? (GROUND_MOUNT_ENG + (kw * GROUND_MOUNT_PPW)) : 0;
+            
+            let pitchPrice = 0; 
+            if (mount === 'roof') { if (pitch === 'steep') pitchPrice = PITCH_STEEP; if (pitch === 'extreme') pitchPrice = PITCH_EXTREME; }
+            
+            let battPrice = 0; let battLabel = "Storage Upgrade:";
+            if (batt === 'yes') { if (inv === 'pw3') { battPrice = PW3_ADDER; battLabel = "Tesla PW3 Integrated System:"; } if (inv === 'eg4') { battPrice = EG4_ADDER; battLabel = "EG4 Off-Grid Hardware:"; } }
+            
+            let siteAdders = mountPrice + pitchPrice;
+            let total = basePrice + panelPrice + siteAdders + battPrice;
+            let costPerWatt = kw > 0 ? (total / (kw * 1000)) : 0;
+            
+            const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+            const fmtCents = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+            
+            document.getElementById('out-kw').innerText = kw; 
+            document.getElementById('out-base').innerText = fmt.format(basePrice + panelPrice); 
+            
+            if(battPrice > 0) { document.getElementById('row-batt').style.display = 'flex'; document.getElementById('label-batt').innerText = battLabel; document.getElementById('out-batt').innerText = "+" + fmt.format(battPrice); } else { document.getElementById('row-batt').style.display = 'none'; }
+            if(siteAdders > 0) { document.getElementById('row-adders').style.display = 'flex'; document.getElementById('out-adders').innerText = "+" + fmt.format(siteAdders); } else { document.getElementById('row-adders').style.display = 'none'; }
+            
+            document.getElementById('out-total').innerText = fmt.format(total);
+            document.getElementById('out-ppw').innerText = fmtCents.format(costPerWatt);
+        }
+
+        // ==========================================
+        // 8. LEADERBOARD LOGIC
+        // ==========================================
+        function updateLeaderboard() {
+            let myScore = (goals.deals * 100) + (goals.apps * 20) + (goals.knocks * 1) + ((goals.drills || 0) * 2);
+            let reps = [
+                { name: "Mason (You)", deals: goals.deals, apps: goals.apps, knocks: goals.knocks, drills: (goals.drills || 0), score: myScore, isUser: true },
+                { name: "Sarah J.", deals: 4, apps: 12, knocks: 350, drills: 80, score: (4*100)+(12*20)+(350*1)+(80*2) },
+                { name: "Mike T.", deals: 6, apps: 15, knocks: 520, drills: 45, score: (6*100)+(15*20)+(520*1)+(45*2) },
+                { name: "Alex R.", deals: 1, apps: 5, knocks: 120, drills: 10, score: (1*100)+(5*20)+(120*1)+(10*2) },
+                { name: "Chloe M.", deals: 8, apps: 22, knocks: 610, drills: 150, score: (8*100)+(22*20)+(610*1)+(150*2) }
+            ];
+            reps.sort((a, b) => b.score - a.score);
+            const tbody = document.getElementById('leaderboard-body');
+            let html = "";
+            reps.forEach((rep, index) => {
+                let rowClass = rep.isUser ? "bg-yellow-50 font-bold border-b border-slate-200" : "border-b border-slate-100 hover:bg-slate-50 transition";
+                let rankIcon = index + 1;
+                if(index === 0) rankIcon = "🥇"; if(index === 1) rankIcon = "🥈"; if(index === 2) rankIcon = "🥉";
+                html += `<tr class="${rowClass}"><td class="py-4 px-4 text-slate-500 font-black">${rankIcon}</td><td class="py-4 px-4 text-blue-900 flex items-center gap-2">${rep.isUser ? '<i class="fas fa-user-circle text-blue-500"></i>' : ''} ${rep.name}</td><td class="py-4 px-4 text-center"><span class="${rep.deals >= 7 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600'} px-3 py-1 rounded-full font-bold">${rep.deals}</span></td><td class="py-4 px-4 text-center text-slate-600">${rep.apps}</td><td class="py-4 px-4 text-center text-slate-600">${rep.knocks}</td><td class="py-4 px-4 text-center text-slate-600">${rep.drills}</td><td class="py-4 px-4 text-right text-blue-600 font-black">${rep.score.toLocaleString()}</td></tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        // ==========================================
+        // 9. COMMISSION CALCULATOR LOGIC
+        // ==========================================
+        function calculatePay() {
+            const deals = parseInt(document.getElementById('calc-deals').value) || 0;
+            const revPerDeal = parseFloat(document.getElementById('calc-rev').value) || 0;
+            const totalRev = deals * revPerDeal;
+            const commRate = deals >= 5 ? 0.05 : 0.03;
+            const baseComm = totalRev * commRate;
+            
+            const payB3 = deals >= 3 ? 1000 : 0;
+            const payB7 = deals >= 7 ? 1500 : 0;
+            const total = baseComm + payB3 + payB7;
+
+            const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+            
+            document.getElementById('pay-total-rev').innerText = fmt.format(totalRev);
+            document.getElementById('pay-rate').innerText = (commRate * 100) + '%';
+            if(deals >= 5) { document.getElementById('pay-rate').className = "font-black text-yellow-400 text-lg"; } else { document.getElementById('pay-rate').className = "font-bold text-white"; }
+
+            document.getElementById('pay-base').innerText = fmt.format(baseComm);
+            document.getElementById('pay-bonus3').innerText = fmt.format(payB3);
+            document.getElementById('pay-bonus7').innerText = fmt.format(payB7);
+            document.getElementById('pay-total').innerText = fmt.format(total);
+
+            const msg = document.getElementById('pay-insight');
+            if (deals < 3) { msg.innerHTML = `Close <b class="text-white">${3 - deals} more deals</b> to unlock the $1,000 bonus.`; msg.classList.remove('bg-red-900/50', 'border-red-800', 'text-red-300'); } 
+            else if (deals < 5) { msg.innerHTML = `Close <b class="text-white text-lg">${5 - deals} more deals</b> to unlock the 5% RETROACTIVE multiplier!`; msg.classList.add('bg-red-900/50', 'border-red-800', 'text-red-300'); } 
+            else if (deals < 7) { msg.innerHTML = `Close <b class="text-white">${7 - deals} more deals</b> to unlock the $1,500 bonus.`; msg.classList.remove('bg-red-900/50', 'border-red-800', 'text-red-300'); } 
+            else { msg.innerHTML = `🔥 President's Club Unlocked. Maximum commissions applied!`; msg.classList.remove('bg-red-900/50', 'border-red-800', 'text-red-300'); }
+        }
+
+        // --- GLOBAL INITIALIZATIONS ---
+        window.speechSynthesis.getVoices(); 
+        updateGoalDisplay();
+        document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        renderTechModule(); initDeck(); calculateEstimate(); renderPhotoProjects();
+    </script>
+</body>
+</html>

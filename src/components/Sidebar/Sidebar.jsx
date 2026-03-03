@@ -13,6 +13,7 @@ const NAV = [
     label: 'Phase 2: The Field',
     links: [
       { id: 'script', icon: '💬', label: 'D2D Script Builder' },
+      { id: 'audio', icon: '🎙️', label: 'Audio Driller' },
       { id: 'objections', icon: '🛡️', label: 'Objection Buster' },
       { id: 'ops', icon: '🔧', label: 'Field Ops Protocol' },
     ],
@@ -21,6 +22,7 @@ const NAV = [
     label: 'Phase 3: Design',
     links: [
       { id: 'sketch', icon: '📐', label: 'Site Sketcher' },
+      { id: 'estimate', icon: '📋', label: 'Estimate Builder' },
       { id: 'library', icon: '📄', label: 'Resources' },
     ],
   },
