@@ -30,16 +30,35 @@ const SECTIONS = {
 export default function App() {
   const { user, setUser, setProfile, activeSection } = useAppStore()
   const [loading, setLoading] = useState(true)
+  const [needsPasswordSet, setNeedsPasswordSet] = useState(false)
 
   useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.slice(1))
+    const searchParams = new URLSearchParams(window.location.search)
+    const urlType = hashParams.get('type') || searchParams.get('type')
+    const isInvite = urlType === 'invite'
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) loadUser(session.user)
-      else setLoading(false)
+      if (session && isInvite) {
+        setNeedsPasswordSet(true)
+        setLoading(false)
+      } else if (session) {
+        loadUser(session.user)
+      } else {
+        setLoading(false)
+      }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) loadUser(session.user)
-      else { setUser(null); setProfile(null) }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        loadUser(session.user)
+      } else if (event === 'USER_UPDATED' && session) {
+        setNeedsPasswordSet(false)
+        loadUser(session.user)
+      } else if (!session) {
+        setUser(null)
+        setProfile(null)
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -47,9 +66,12 @@ export default function App() {
 
   async function loadUser(authUser) {
     setUser(authUser)
-    const { data } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
-    setProfile(data)
-    setLoading(false)
+    try {
+      const { data } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
+      setProfile(data)
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (loading) {
@@ -60,7 +82,7 @@ export default function App() {
     )
   }
 
-  if (!user) return <AuthScreen />
+  if (!user || needsPasswordSet) return <AuthScreen needsPasswordSet={needsPasswordSet} />
 
   const ActiveSection = SECTIONS[activeSection] || Dashboard
 
