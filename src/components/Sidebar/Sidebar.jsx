@@ -30,6 +30,7 @@ const NAV = [
     label: 'Phase 4: Business',
     links: [
       { id: 'customers', icon: '👥', label: 'Customer Tracker' },
+      { id: 'contract', icon: '📝', label: 'Contract Generator' }, // <-- ADDED THIS LINE
       { id: 'commission', icon: '🧮', label: 'Commission Calc' },
       { id: 'leaderboard', icon: '🏆', label: 'Leaderboard' },
     ],
@@ -56,7 +57,7 @@ export default function Sidebar() {
               <button
                 key={id}
                 onClick={() => setActiveSection(id)}
-                className={`sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition ${activeSection === id ? 'active' : 'hover:bg-blue-800'}`}
+                className={`sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition ${activeSection === id ? 'active bg-yellow-400 text-blue-900 font-bold' : 'hover:bg-blue-800'}`}
               >
                 <span className="w-5 text-center">{icon}</span>
                 {label}
