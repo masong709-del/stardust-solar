@@ -7,35 +7,37 @@ export default function EstimateBuilder() {
   const [panel, setPanel] = useState('longi')
   const [mount, setMount] = useState('roof')
   const [pitch, setPitch] = useState('standard')
-  const [battery, setBattery] = useState('no')
+  const [batteryCount, setBatteryCount] = useState(0)
   const [inverter, setInverter] = useState('micro')
 
   // --- Handlers for Cascading Dropdown Logic ---
   const handleSysTypeChange = (val) => {
     setSysType(val)
     if (val === 'offgrid') {
-      setBattery('yes')
+      // Off-grid requires batteries, default to 2
+      if (batteryCount === 0) setBatteryCount(2)
       setInverter('eg4')
     } else {
+      // Switching back to grid
       if (inverter === 'eg4') {
-        setInverter(battery === 'yes' ? 'pw3' : 'micro')
+        setInverter(batteryCount > 0 ? 'pw3' : 'micro')
       }
     }
   }
 
   const handleBatteryChange = (val) => {
-    setBattery(val)
+    setBatteryCount(val)
     if (sysType === 'grid') {
-      if (val === 'yes') setInverter('pw3')
-      if (val === 'no') setInverter('micro')
+      if (val > 0) setInverter('pw3')
+      if (val === 0) setInverter('micro')
     }
   }
 
   const handleInverterChange = (val) => {
     setInverter(val)
     if (sysType === 'grid') {
-      if (val === 'pw3') setBattery('yes')
-      if (val === 'micro') setBattery('no')
+      if (val === 'pw3' && batteryCount === 0) setBatteryCount(1)
+      if (val === 'micro') setBatteryCount(0)
     }
   }
 
@@ -50,9 +52,6 @@ export default function EstimateBuilder() {
   const PITCH_STEEP = 1000
   const PITCH_EXTREME = 2000
   
-  const PW3_ADDER = 28000 // Retail adder for PW3 + Gateway + Misc
-  const EG4_ADDER = 18500 // Retail adder for EG4 Inverter + 2x Batteries
-
   const parsedKw = parseFloat(kw) || 0
   
   // Base math
@@ -69,12 +68,24 @@ export default function EstimateBuilder() {
   }
   const siteAdders = mountPrice + pitchPrice
 
-  // Battery Upgrade Math
+  // Battery Upgrade Math (Scaling Logic)
   let battPrice = 0
   let battLabel = "Storage Upgrade:"
-  if (battery === 'yes') { 
-    if (inverter === 'pw3') { battPrice = PW3_ADDER; battLabel = "Tesla PW3 Integrated System:" } 
-    if (inverter === 'eg4') { battPrice = EG4_ADDER; battLabel = "EG4 Off-Grid Hardware:" } 
+  let totalKwh = 0
+
+  if (batteryCount > 0) {
+    if (inverter === 'pw3') { 
+      // First PW3 includes Gateway and heavy labor. Incremental PW3s are cheaper.
+      battPrice = 28000 + ((batteryCount - 1) * 12000)
+      battLabel = `Tesla PW3 (${batteryCount}x):`
+      totalKwh = batteryCount * 13.5
+    } 
+    if (inverter === 'eg4') { 
+      // First EG4 rack/inverter + battery. Incremental batteries scale.
+      battPrice = 13500 + ((batteryCount - 1) * 5000)
+      battLabel = `EG4 Off-Grid (${batteryCount}x):`
+      totalKwh = batteryCount * 14.3
+    }
   }
 
   // Totals
@@ -163,15 +174,19 @@ export default function EstimateBuilder() {
 
             <div className="p-5 bg-blue-50 border border-blue-100 rounded-xl space-y-4">
               <div>
-                <label className="block text-xs uppercase font-black text-blue-900 mb-2">Battery Storage Included?</label>
+                <label className="block text-xs uppercase font-black text-blue-900 mb-2">Battery Quantity</label>
                 <select 
-                  value={battery} 
-                  onChange={(e) => handleBatteryChange(e.target.value)} 
-                  disabled={sysType === 'offgrid'}
-                  className="w-full p-3 border-2 border-white rounded-xl bg-white text-blue-900 font-bold outline-none focus:border-yellow-400 transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  value={batteryCount} 
+                  onChange={(e) => handleBatteryChange(parseInt(e.target.value))} 
+                  className="w-full p-3 border-2 border-white rounded-xl bg-white text-blue-900 font-bold outline-none focus:border-yellow-400 transition shadow-sm"
                 >
-                  <option value="no">No (Solar Only)</option>
-                  <option value="yes">Yes (Solar + Battery)</option>
+                  <option value={0} disabled={sysType === 'offgrid'}>0 (Solar Only)</option>
+                  <option value={1}>1 Battery</option>
+                  <option value={2}>2 Batteries</option>
+                  <option value={3}>3 Batteries</option>
+                  <option value={4}>4 Batteries</option>
+                  <option value={5}>5 Batteries</option>
+                  <option value={6}>6 Batteries</option>
                 </select>
               </div>
               <div>
@@ -208,11 +223,17 @@ export default function EstimateBuilder() {
                 <span className="font-bold text-white">{fmt.format(turnkeyBase)}</span>
               </div>
               
-              {battPrice > 0 && (
-                <div className="flex justify-between text-slate-300">
-                  <span>{battLabel}</span> 
-                  <span className="font-bold text-yellow-400">+{fmt.format(battPrice)}</span>
-                </div>
+              {batteryCount > 0 && (
+                <>
+                  <div className="flex justify-between text-slate-300">
+                    <span>{battLabel}</span> 
+                    <span className="font-bold text-yellow-400">+{fmt.format(battPrice)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-300">
+                    <span>Storage Capacity:</span> 
+                    <span className="font-bold text-white">{totalKwh.toFixed(1)} kWh</span>
+                  </div>
+                </>
               )}
               
               {siteAdders > 0 && (
@@ -223,14 +244,14 @@ export default function EstimateBuilder() {
               )}
             </div>
             
-            {/* New Total Block matching the image */}
+            {/* Total Block */}
             <div className="bg-blue-800 rounded-2xl p-6 text-center shadow-inner mb-6">
               <p className="text-[10px] uppercase tracking-widest font-bold text-blue-300 mb-1">Total System Price</p>
               <p className="text-5xl font-black text-white tracking-tighter mb-1">{fmt.format(total)}</p>
               <p className="text-xs font-bold text-blue-200">{fmtCents.format(costPerWatt)}/W installed</p>
             </div>
             
-            {/* New Summary Badges matching the image redlines */}
+            {/* Summary Badges */}
             <div className="text-center">
               <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-3 font-bold">Before Tax & Rebates</p>
               
@@ -254,8 +275,12 @@ export default function EstimateBuilder() {
                   </span>
                 )}
                 
+                {/* Dynamic Battery Badge with kWh */}
                 <span className="bg-slate-800 text-slate-300 text-[10px] font-bold px-3 py-1.5 rounded-full border border-slate-700 uppercase tracking-widest">
-                  {battery === 'yes' ? (inverter === 'pw3' ? 'Tesla PW3' : 'EG4 Off-Grid') : 'Microinverters'}
+                  {batteryCount > 0 
+                    ? (inverter === 'pw3' ? `Tesla PW3 (${totalKwh.toFixed(1)} kWh)` : `EG4 (${totalKwh.toFixed(1)} kWh)`) 
+                    : 'Microinverters'
+                  }
                 </span>
               </div>
             </div>
