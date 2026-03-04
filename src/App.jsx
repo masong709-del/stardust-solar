@@ -15,6 +15,7 @@ import CommissionCalc from './components/CommissionCalc/CommissionCalc'
 import Leaderboard from './components/Leaderboard/Leaderboard'
 import AudioDriller from './components/AudioDriller/AudioDriller'
 import EstimateBuilder from './components/EstimateBuilder/EstimateBuilder'
+import ContractGenerator from './components/ContractGenerator/ContractGenerator'
 
 const SECTIONS = {
   welcome: Dashboard,
@@ -28,6 +29,7 @@ const SECTIONS = {
   library: Resources,
   customers: CustomerTracker,
   commission: CommissionCalc,
+  contract: ContractGenerator,
   leaderboard: Leaderboard,
 }
 
