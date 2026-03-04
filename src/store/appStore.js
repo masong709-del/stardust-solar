@@ -14,4 +14,11 @@ export const useAppStore = create((set) => ({
   // Goals period toggle
   activePeriod: 'weekly',
   setActivePeriod: (period) => set({ activePeriod: period }),
+
+  // --- NEW: Contract Generator Data ---
+  customerForContract: null,
+  setCustomerForContract: (customer) => set({ customerForContract: customer }),
+
+  estimateForContract: null,
+  setEstimateForContract: (estimate) => set({ estimateForContract: estimate }),
 }))

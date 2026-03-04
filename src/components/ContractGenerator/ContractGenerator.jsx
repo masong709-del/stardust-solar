@@ -1,53 +1,66 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useAppStore } from '../../store/appStore'
 
 export default function ContractGenerator() {
-  // --- Simulated Estimate Data (Passed from Zustand store) ---
-  const estimate = {
-    kw: 6,
-    mountType: "Ground",
-    sysType: "off-grid",
-    panel: "Longi LR8 500W 54-Cell Bifacial All-black",
-    inverter: "2 EG4 Wall-mount Outdoor",
-    batteryKwh: 28.6,
-    subTotal: 41265.84,
-    discount: 2000,
+  // 1. Pull data from the global store
+  const { customerForContract, estimateForContract } = useAppStore()
+
+  // 2. Local state for the customer (so you can still edit it on this screen if needed)
+  const [customer, setCustomer] = useState({
+    name: '', address: '', city: '', postal: '', phone: '', email: ''
+  })
+
+  // 3. Fallback estimate data if they came here without building a quote first
+  const estimate = estimateForContract || {
+    kw: 0,
+    mountType: "Roof",
+    sysType: "Grid-Tied",
+    panel: "TBD",
+    inverter: "TBD",
+    batteryKwh: 0,
+    subTotal: 0,
+    discount: 0,
   }
 
-  // Ontario HST (13%)
+  // Update the local customer form if the global store changes (e.g. clicked from Tracker)
+  useEffect(() => {
+    if (customerForContract) {
+      setCustomer({
+        name: customerForContract.name || '',
+        address: customerForContract.address || '',
+        city: customerForContract.city || '',
+        postal: customerForContract.postal || '',
+        phone: customerForContract.phone || '',
+        email: customerForContract.email || ''
+      })
+    }
+  }, [customerForContract])
+
+  // Math
   const taxRate = 0.13
   const tax = estimate.subTotal * taxRate
   const total = estimate.subTotal + tax
 
-  // Payment Schedule Math (Cash)
   const deposit = total * 0.15
   const progressPayment = total * 0.40
   const finalPayment = total * 0.45
-
-  // Payment Schedule Math (Financing)
   const securityDeposit = total * 0.1799
 
-  // --- Customer Tracker State ---
-  const [customer, setCustomer] = useState({
-    name: 'Lila Barsaloux',
-    address: 'Clear Lake Road',
-    city: 'Coleman, ON',
-    postal: 'P0J 1C0',
-    phone: '',
-    email: ''
-  })
-
-  const handlePrint = () => {
-    window.print()
-  }
-
-  // Formatters
+  const handlePrint = () => window.print()
   const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
   const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
   return (
     <section className="max-w-7xl mx-auto p-4 md:p-8">
       <div className="flex justify-between items-end mb-8 print:hidden">
-        <h2 className="text-4xl font-black text-blue-900">Contract Generator</h2>
+        <div>
+          <h2 className="text-4xl font-black text-blue-900 mb-2">Contract Generator</h2>
+          {!estimateForContract && (
+             <p className="text-orange-500 font-bold text-sm bg-orange-100 px-3 py-1 rounded inline-block">
+               ⚠️ Warning: No active estimate loaded. Build a quote first.
+             </p>
+          )}
+        </div>
         <button onClick={handlePrint} className="bg-blue-900 text-white px-6 py-3 rounded-xl font-black shadow-lg hover:bg-blue-800 transition">
           <i className="fas fa-print mr-2"></i> Print / Save PDF
         </button>
@@ -95,7 +108,6 @@ export default function ContractGenerator() {
         {/* Right Column: Live Document Preview */}
         <div className="lg:col-span-8 bg-white p-12 rounded-sm shadow-2xl border border-slate-200 text-slate-800 font-serif text-sm leading-relaxed print:p-0 print:shadow-none print:border-none print:text-black">
           
-          {/* Document Header */}
           <div className="flex justify-between items-start mb-8 border-b-2 border-slate-800 pb-6">
             <div>
               <h1 className="text-2xl font-black uppercase tracking-widest mb-4">Solar Installation Agreement</h1>
@@ -118,12 +130,11 @@ export default function ContractGenerator() {
             </div>
           </div>
 
-          {/* Scope of Work */}
           <div className="mb-6">
             <h2 className="text-lg font-bold border-b border-slate-300 mb-3 uppercase tracking-wider">Scope of Work</h2>
             <div className="space-y-2">
               <p><strong>Your Solar PV System:</strong> We will determine and confirm the optimum location for your solar panels on the property.</p>
-              <p><strong>Solar Panel System:</strong> {estimate.mountType} Mounted {estimate.kw}kW Solar(PV) {estimate.sysType} System with {estimate.batteryKwh} kWh storage capacity.</p>
+              <p><strong>Solar Panel System:</strong> {estimate.mountType} Mounted {estimate.kw}kW Solar(PV) {estimate.sysType} System {estimate.batteryKwh > 0 ? `with ${estimate.batteryKwh.toFixed(1)} kWh storage capacity.` : ''}</p>
               <p><strong>Solar Panel Details:</strong> {estimate.panel} & {estimate.inverter} (or equivalent, solar panel power rating may vary by up to 2.5%).</p>
               <p>Our systems include web monitoring devices and setup so that the system owner can see how much the system is generating over time and at any given time.</p>
               <p>Our systems include equipment, wiring, and devices necessary to make a functioning system complete.</p>
@@ -131,37 +142,23 @@ export default function ContractGenerator() {
             </div>
           </div>
 
-          {/* Notes & Legal Clauses */}
           <div className="mb-6 space-y-4 text-[13px] text-justify">
             <h2 className="text-lg font-bold border-b border-slate-300 mb-3 uppercase tracking-wider">Notes</h2>
-            
             <p><strong>Confidentiality:</strong> This Confidential Proposal has been proposed exclusively for you. This remains the property of Stardust Solar until accepted and may not be given to or shown to any other person or company.</p>
-            
             <p><strong>Warranty:</strong> All Stardust Solar crews working on your roof and your electrical system are certified. We are so confident in our work that we offer you a 5-Year Workmanship Warranty on our labor, in addition to the manufacturer’s warranties on the equipment installed. As well, we offer a 5-Year Roof Warranty along with your solar and workmanship warranties, pending a roofing inspection. This covers you for any leaks as a result of our work on your solar roof faces.</p>
-            
             <p><strong>Insurance:</strong> Our company carries a minimum of $5 million in commercial liability and ensures workers are registered in accordance with local occupational health and safety and workers compensation requirements. It is the responsibility of the customer to ensure that they carry comprehensive liability cover in excess of $5 million if they so require.</p>
-            
             <p><strong>Debris Removal:</strong> It is our goal to remove all debris and leave premises in clean condition without damage to the surrounding property, and to restore any landscaping to its original condition.</p>
-            
             <p><strong>Access to Property:</strong> This agreement is based on the assumption that we, along with necessary associates and inspectors, will have free access to the property, electrical panel, and wiring routes during regular business hours. Notice and request for access will be given and confirmed by the customer.</p>
-
             <p><strong>Incentive and Financing:</strong> We will provide support to help customers navigate government incentives programs and financing options. Approvals and costs of government incentive and financing approvals are the responsibility of the customer, and any financing terms will be set out in a separate financing agreement between the customer and finance company.</p>
-
             <p><strong>Project Timing:</strong> Due to the uncertainty of weather conditions, material supplies, and shipping delays it is not possible to give an exact start date or completion date, however our projects are as a rule completed on a ‘first come first serve basis’, and we will always do our best to get to your project in a timely manner. However, due to such variables, any start date given whether verbal or written are to be considered tentative and cannot be guaranteed.</p>
-
             <p><strong>Work Quality:</strong> Our work will be completed in a quality manner and in compliance with all building and electrical codes, all other applicable laws, and all applicable utility requirements, including appropriate utility interconnection obligations.</p>
-
             <p><strong>Change Orders:</strong> Due to possible unforeseen circumstances such as physical obstacles to solar panel locations, problems with the existing electrical system, or late progress payments causing delays and material price changes, we may need to make changes to the scope of work or adjustments to the price or payment structure. All change orders will be provided to customers for approval before proceeding.</p>
-
             <p><strong>Payment Schedule:</strong> We require progress payments at certain stages of the project in order to proceed. See Pricing Summary for progress payments terms and amounts. Failure to make progress payments or approve financing payments may result in stop-work, stop-progress orders, project delays, and/or additional costs.</p>
-
             <p><strong>Cancellation:</strong> The customer may cancel the installation during any stage of the project. If the customer cancels prior to the installation start-date, any deposits and progress payments are fully refundable, less any permit fees or other expenses incurred, and a 25% restocking fee on any solar equipment & materials purchased. If the customer cancels after the physical installation has begun, no refunds will be available. Security deposits for financing customers will be fully refundable on completion of the job, less any remaining balance owing.</p>
           </div>
 
-          {/* Page Break for Print */}
           <div className="break-before-page"></div>
 
-          {/* Pricing Summary */}
           <div className="mb-6 pt-6">
             <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Pricing Summary</h2>
             <p className="mb-4">The following is a summary of pricing for this proposal, subject to the validity period, and otherwise subject to change without notice prior to the contract being signed.</p>
@@ -170,7 +167,7 @@ export default function ContractGenerator() {
               <p className="font-bold mb-2">Incentives & Discounts:</p>
               <ul className="mb-4 space-y-1 ml-4 list-disc">
                 <li>25 Year Longi Module Warranty (Parts & Labor)</li>
-                <li>10 Year EG4 Warranty (Part & Labour)</li>
+                {estimate.batteryKwh > 0 && <li>10 Year EG4 Warranty (Part & Labour)</li>}
                 <li>Discount: {fmt.format(estimate.discount)}</li>
               </ul>
               <div className="flex justify-end mt-6">
@@ -180,7 +177,7 @@ export default function ContractGenerator() {
                     <span className="font-bold">{fmt.format(estimate.subTotal)}</span>
                   </div>
                   <div className="flex justify-between border-b border-slate-200 pb-2">
-                    <span>Tax:</span>
+                    <span>Tax (13%):</span>
                     <span>{fmt.format(tax)}</span>
                   </div>
                   <div className="flex justify-between text-xl pt-2">
@@ -192,7 +189,6 @@ export default function ContractGenerator() {
             </div>
           </div>
 
-          {/* Payment Schedules */}
           <div className="mb-8">
             <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Payment Schedule (No Financing)</h2>
             <p className="mb-2">We require Progress Payments as follows:</p>
@@ -235,11 +231,9 @@ export default function ContractGenerator() {
             <p className="mt-4 italic">._______________________________________ Initial Here to Opt-In to Financing</p>
           </div>
 
-          {/* Indemnification & Signatures */}
           <div className="mt-12 pt-8 border-t-2 border-slate-800 text-[12px] text-justify space-y-4">
             <h2 className="text-lg font-bold uppercase tracking-wider mb-2">Confirmation of Contract</h2>
             <p>On signature by all the parties this Confidential Proposal constitutes a binding contract and records the entire understanding. The company entering into this contract is Stardust Solar and will be bound by all the terms and conditions set out in this document. The person(s) signing as customer confirms that he/she is a registered owner(s) of the property or is authorized to sign the contract and bind the owner. No other understanding, collateral or otherwise, shall be binding unless agreed in writing and signed by all parties. Receipt of a copy of this contract is hereby acknowledged. All contracts are subject to a site assessment and verification of the feasibility of the scope of work by Stardust Solar. Additional terms and conditions are attached.</p>
-            
             <p>The parties agree to indemnify and defend the other party and its directors, officers, employees, agents, representatives, and affiliates and hold them harmless from and against any and all losses, liabilities, damages, claims, suits, actions, judgments, assessments, costs and expenses, including without limitation interest, penalties, attorney fees, any and all expenses incurred in investigating, preparing, or defending against any litigation, commenced or threatened, or any claim whatsoever, and any and all amounts paid in settlement of any claim or litigation asserted against, imposed on, or incurred or suffered by any of them, directly or indirectly, as a result of or arising from the negligent or wrongful acts or omissions of the other party, from any breach of this agreement by the other party, or from any finding, judgment or other determination or settlement whereby the customer is deemed or considered to be the employer of contractor or of contractor's personnel.</p>
           </div>
 
