@@ -2,28 +2,23 @@ import { useEffect, useState } from 'react'
 import { useAppStore } from '../../store/appStore'
 
 export default function ContractGenerator() {
-  // 1. Pull data from the global store
   const { customerForContract, estimateForContract } = useAppStore()
 
-  // 2. Local state for the customer (so you can still edit it on this screen if needed)
+  // Customer Form State
   const [customer, setCustomer] = useState({
     name: '', address: '', city: '', postal: '', phone: '', email: ''
   })
 
-  // 3. Fallback estimate data if they came here without building a quote first
-  const estimate = estimateForContract || {
-    kw: 0,
-    mountType: "Roof",
-    sysType: "Grid-Tied",
-    panel: "TBD",
-    inverter: "TBD",
-    batteryKwh: 0,
-    subTotal: 0,
-    discount: 0,
-  }
+  // We keep the estimate in local state so we can override it via the dropdown
+  const [estimate, setEstimate] = useState(estimateForContract || {
+    kw: 0, mountType: "Roof", sysType: "Grid-Tied", panel: "TBD", inverter: "TBD", batteryKwh: 0, subTotal: 0, discount: 0
+  })
 
-  // Update the local customer form if the global store changes (e.g. clicked from Tracker)
+  // List of all saved estimates for the dropdown
+  const [savedEstimatesList, setSavedEstimatesList] = useState([])
+
   useEffect(() => {
+    // Populate customer if routed from tracker
     if (customerForContract) {
       setCustomer({
         name: customerForContract.name || '',
@@ -34,7 +29,19 @@ export default function ContractGenerator() {
         email: customerForContract.email || ''
       })
     }
+    // Pull saved estimates into the dropdown list
+    setSavedEstimatesList(JSON.parse(localStorage.getItem('stardustEstimates') || '[]'))
   }, [customerForContract])
+
+  // Allows user to pull an old estimate directly into the contract
+  const handleSelectEstimate = (e) => {
+    const estId = parseInt(e.target.value)
+    if (!estId) return
+    const est = savedEstimatesList.find(x => x.id === estId)
+    if (est) {
+      setEstimate(est)
+    }
+  }
 
   // Math
   const taxRate = 0.13
@@ -55,9 +62,9 @@ export default function ContractGenerator() {
       <div className="flex justify-between items-end mb-8 print:hidden">
         <div>
           <h2 className="text-4xl font-black text-blue-900 mb-2">Contract Generator</h2>
-          {!estimateForContract && (
+          {estimate.subTotal === 0 && (
              <p className="text-orange-500 font-bold text-sm bg-orange-100 px-3 py-1 rounded inline-block">
-               ⚠️ Warning: No active estimate loaded. Build a quote first.
+               ⚠️ Warning: No active estimate loaded. Select one below or build a new quote.
              </p>
           )}
         </div>
@@ -68,9 +75,24 @@ export default function ContractGenerator() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Left Column: Customer Tracker Form */}
+        {/* Left Column: Form Controls */}
         <div className="lg:col-span-4 space-y-6 print:hidden">
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 sticky top-10">
+          
+          {/* NEW: Estimate Selector */}
+          <div className="bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-800 relative border-t-4 border-yellow-400">
+            <h3 className="font-black text-yellow-400 mb-4 text-sm uppercase tracking-widest">
+              <i className="fas fa-file-invoice-dollar mr-2"></i>Attach Saved Estimate
+            </h3>
+            <select onChange={handleSelectEstimate} className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white font-bold outline-none focus:border-yellow-400 transition">
+              <option value="">-- Search & Select Estimate --</option>
+              {savedEstimatesList.slice().reverse().map(est => (
+                <option key={est.id} value={est.id}>{est.name} ({est.date}) - {fmt.format(est.subTotal)}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Customer Form */}
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
             <h3 className="font-black text-xl text-blue-900 mb-6 border-b border-slate-100 pb-4">
               <i className="fas fa-address-book mr-2"></i>Customer Details
             </h3>
@@ -154,7 +176,7 @@ export default function ContractGenerator() {
             <p><strong>Work Quality:</strong> Our work will be completed in a quality manner and in compliance with all building and electrical codes, all other applicable laws, and all applicable utility requirements, including appropriate utility interconnection obligations.</p>
             <p><strong>Change Orders:</strong> Due to possible unforeseen circumstances such as physical obstacles to solar panel locations, problems with the existing electrical system, or late progress payments causing delays and material price changes, we may need to make changes to the scope of work or adjustments to the price or payment structure. All change orders will be provided to customers for approval before proceeding.</p>
             <p><strong>Payment Schedule:</strong> We require progress payments at certain stages of the project in order to proceed. See Pricing Summary for progress payments terms and amounts. Failure to make progress payments or approve financing payments may result in stop-work, stop-progress orders, project delays, and/or additional costs.</p>
-            <p><strong>Cancellation:</strong> The customer may cancel the installation during any stage of the project. If the customer cancels prior to the installation start-date, any deposits and progress payments are fully refundable, less any permit fees or other expenses incurred, and a 25% restocking fee on any solar equipment & materials purchased. If the customer cancels after the physical installation has begun, no refunds will be available. Security deposits for financing customers will be fully refundable on completion of the job, less any remaining balance owing.</p>
+            <p><strong>Cancellation:</strong> The customer may cancel the installation during any stage of the project. If the customer cancels prior to the installation start-date, any deposits and progress payments are fully refundable, less any permit fees or other expenses incurred, and a 25% restocking fee on any solar equipment & materials purchased. If the customer cancels after the physical installation has begun, no refunds will be available. Security deposits for financing customers will be financing customers will be fully refundable on completion of the job, less any remaining balance owing.</p>
           </div>
 
           <div className="break-before-page"></div>
