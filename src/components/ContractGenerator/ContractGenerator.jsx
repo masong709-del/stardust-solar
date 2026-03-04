@@ -9,16 +9,17 @@ export default function ContractGenerator() {
     name: '', address: '', city: '', postal: '', phone: '', email: ''
   })
 
-  // We keep the estimate in local state so we can override it via the dropdown
+  // We keep the estimate in local state so we can override it via the sidebar list
   const [estimate, setEstimate] = useState(estimateForContract || {
     kw: 0, mountType: "Roof", sysType: "Grid-Tied", panel: "TBD", inverter: "TBD", batteryKwh: 0, subTotal: 0, discount: 0
   })
 
-  // List of all saved estimates for the dropdown
+  // List of all saved estimates for the side panel
   const [savedEstimatesList, setSavedEstimatesList] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortOrder, setSortOrder] = useState('newest')
 
   useEffect(() => {
-    // Populate customer if routed from tracker
     if (customerForContract) {
       setCustomer({
         name: customerForContract.name || '',
@@ -29,21 +30,18 @@ export default function ContractGenerator() {
         email: customerForContract.email || ''
       })
     }
-    // Pull saved estimates into the dropdown list
     setSavedEstimatesList(JSON.parse(localStorage.getItem('stardustEstimates') || '[]'))
   }, [customerForContract])
 
-  // Allows user to pull an old estimate directly into the contract
-  const handleSelectEstimate = (e) => {
-    const estId = parseInt(e.target.value)
-    if (!estId) return
-    const est = savedEstimatesList.find(x => x.id === estId)
-    if (est) {
-      setEstimate(est)
-    }
+  // Allows user to click a mini-card and load it into the contract
+  const handleSelectEstimate = (est) => {
+    setEstimate(est)
   }
 
-  // Math
+  // Formatting & Math
+  const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
+  const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  
   const taxRate = 0.13
   const tax = estimate.subTotal * taxRate
   const total = estimate.subTotal + tax
@@ -54,8 +52,18 @@ export default function ContractGenerator() {
   const securityDeposit = total * 0.1799
 
   const handlePrint = () => window.print()
-  const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
-  const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+
+  // Filter/Sort logic for the sidebar
+  const filteredAndSortedEstimates = savedEstimatesList
+    .filter(est => est.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrder === 'newest') return b.id - a.id
+      if (sortOrder === 'oldest') return a.id - b.id
+      if (sortOrder === 'price-high') return b.subTotal - a.subTotal
+      if (sortOrder === 'price-low') return a.subTotal - b.subTotal
+      if (sortOrder === 'az') return a.name.localeCompare(b.name)
+      return 0
+    })
 
   return (
     <section className="max-w-7xl mx-auto p-4 md:p-8">
@@ -75,20 +83,53 @@ export default function ContractGenerator() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Left Column: Form Controls */}
+        {/* Left Column: Form Controls & Searchable Estimates */}
         <div className="lg:col-span-4 space-y-6 print:hidden">
           
-          {/* NEW: Estimate Selector */}
-          <div className="bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-800 relative border-t-4 border-yellow-400">
+          {/* SEARCHABLE ESTIMATES SIDEBAR */}
+          <div className="bg-slate-900 p-6 rounded-3xl shadow-lg border border-slate-800 relative border-t-4 border-yellow-400">
             <h3 className="font-black text-yellow-400 mb-4 text-sm uppercase tracking-widest">
-              <i className="fas fa-file-invoice-dollar mr-2"></i>Attach Saved Estimate
+              <i className="fas fa-search mr-2"></i>Attach Saved Estimate
             </h3>
-            <select onChange={handleSelectEstimate} className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white font-bold outline-none focus:border-yellow-400 transition">
-              <option value="">-- Search & Select Estimate --</option>
-              {savedEstimatesList.slice().reverse().map(est => (
-                <option key={est.id} value={est.id}>{est.name} ({est.date}) - {fmt.format(est.subTotal)}</option>
-              ))}
-            </select>
+            
+            <div className="space-y-3 mb-4">
+              <input 
+                type="text" 
+                placeholder="Search name..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white font-medium outline-none focus:border-yellow-400 transition"
+              />
+              <select 
+                value={sortOrder} 
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 font-bold outline-none focus:border-yellow-400 transition cursor-pointer"
+              >
+                <option value="newest">Sort: Newest First</option>
+                <option value="oldest">Sort: Oldest First</option>
+                <option value="price-high">Sort: Price High-Low</option>
+                <option value="price-low">Sort: Price Low-High</option>
+                <option value="az">Sort: Name A-Z</option>
+              </select>
+            </div>
+
+            <div className="max-h-64 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+              {filteredAndSortedEstimates.length === 0 ? (
+                 <p className="text-xs text-slate-500 italic text-center py-4">No matching estimates found.</p>
+              ) : (
+                filteredAndSortedEstimates.map(est => (
+                  <button 
+                    key={est.id}
+                    onClick={() => handleSelectEstimate(est)}
+                    className="w-full text-left bg-slate-800 border border-slate-700 p-3 rounded-xl hover:border-yellow-400 hover:bg-slate-750 transition group flex flex-col"
+                  >
+                    <span className="font-bold text-white text-sm group-hover:text-yellow-400 transition truncate w-full">{est.name}</span>
+                    <span className="text-xs text-slate-400">{est.date} • {est.kw}kW</span>
+                    <span className="text-green-400 font-black mt-1">{fmt.format(est.subTotal)}</span>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Customer Form */}
@@ -176,7 +217,7 @@ export default function ContractGenerator() {
             <p><strong>Work Quality:</strong> Our work will be completed in a quality manner and in compliance with all building and electrical codes, all other applicable laws, and all applicable utility requirements, including appropriate utility interconnection obligations.</p>
             <p><strong>Change Orders:</strong> Due to possible unforeseen circumstances such as physical obstacles to solar panel locations, problems with the existing electrical system, or late progress payments causing delays and material price changes, we may need to make changes to the scope of work or adjustments to the price or payment structure. All change orders will be provided to customers for approval before proceeding.</p>
             <p><strong>Payment Schedule:</strong> We require progress payments at certain stages of the project in order to proceed. See Pricing Summary for progress payments terms and amounts. Failure to make progress payments or approve financing payments may result in stop-work, stop-progress orders, project delays, and/or additional costs.</p>
-            <p><strong>Cancellation:</strong> The customer may cancel the installation during any stage of the project. If the customer cancels prior to the installation start-date, any deposits and progress payments are fully refundable, less any permit fees or other expenses incurred, and a 25% restocking fee on any solar equipment & materials purchased. If the customer cancels after the physical installation has begun, no refunds will be available. Security deposits for financing customers will be financing customers will be fully refundable on completion of the job, less any remaining balance owing.</p>
+            <p><strong>Cancellation:</strong> The customer may cancel the installation during any stage of the project. If the customer cancels prior to the installation start-date, any deposits and progress payments are fully refundable, less any permit fees or other expenses incurred, and a 25% restocking fee on any solar equipment & materials purchased. If the customer cancels after the physical installation has begun, no refunds will be available. Security deposits for financing customers will be fully refundable on completion of the job, less any remaining balance owing.</p>
           </div>
 
           <div className="break-before-page"></div>
