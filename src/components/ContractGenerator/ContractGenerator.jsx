@@ -1,25 +1,39 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '../../store/appStore'
+import { useProspects } from '../../hooks/useProspects'
 
 export default function ContractGenerator() {
-  const { customerForContract, estimateForContract } = useAppStore()
+  // Pull data from global store, including the current user for DB fetching
+  const { user, customerForContract, estimateForContract } = useAppStore()
+  
+  // Fetch prospects from your custom hook
+  const { prospects, load } = useProspects(user?.id)
 
   // Customer Form State
   const [customer, setCustomer] = useState({
     name: '', address: '', city: '', postal: '', phone: '', email: ''
   })
 
-  // We keep the estimate in local state so we can override it via the sidebar list
+  // Estimate State
   const [estimate, setEstimate] = useState(estimateForContract || {
     kw: 0, mountType: "Roof", sysType: "Grid-Tied", panel: "TBD", inverter: "TBD", batteryKwh: 0, subTotal: 0, discount: 0
   })
 
-  // List of all saved estimates for the side panel
+  // Sidebar Search States
   const [savedEstimatesList, setSavedEstimatesList] = useState([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortOrder, setSortOrder] = useState('newest')
+  const [estimateSearchQuery, setEstimateSearchQuery] = useState('')
+  const [estimateSortOrder, setEstimateSortOrder] = useState('newest')
+  
+  const [prospectSearchQuery, setProspectSearchQuery] = useState('')
 
   useEffect(() => {
+    // Load prospects from database
+    load()
+
+    // Load estimates from local storage
+    setSavedEstimatesList(JSON.parse(localStorage.getItem('stardustEstimates') || '[]'))
+
+    // Auto-fill if routed directly from the Tracker
     if (customerForContract) {
       setCustomer({
         name: customerForContract.name || '',
@@ -30,12 +44,20 @@ export default function ContractGenerator() {
         email: customerForContract.email || ''
       })
     }
-    setSavedEstimatesList(JSON.parse(localStorage.getItem('stardustEstimates') || '[]'))
-  }, [customerForContract])
+  }, [customerForContract, load])
 
-  // Allows user to click a mini-card and load it into the contract
-  const handleSelectEstimate = (est) => {
-    setEstimate(est)
+  // Click Handlers for Sidebar Lists
+  const handleSelectEstimate = (est) => setEstimate(est)
+  
+  const handleSelectProspect = (p) => {
+    setCustomer({
+      name: p.name || '',
+      address: p.address || '',
+      city: p.city || '', // Manually filled if not in CRM
+      postal: p.postal || '', // Manually filled if not in CRM
+      phone: p.phone || '',
+      email: p.email || ''
+    })
   }
 
   // Formatting & Math
@@ -53,56 +75,61 @@ export default function ContractGenerator() {
 
   const handlePrint = () => window.print()
 
-  // Filter/Sort logic for the sidebar
+  // Filter/Sort Logic
   const filteredAndSortedEstimates = savedEstimatesList
-    .filter(est => est.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(est => est.name.toLowerCase().includes(estimateSearchQuery.toLowerCase()))
     .sort((a, b) => {
-      if (sortOrder === 'newest') return b.id - a.id
-      if (sortOrder === 'oldest') return a.id - b.id
-      if (sortOrder === 'price-high') return b.subTotal - a.subTotal
-      if (sortOrder === 'price-low') return a.subTotal - b.subTotal
-      if (sortOrder === 'az') return a.name.localeCompare(b.name)
+      if (estimateSortOrder === 'newest') return b.id - a.id
+      if (estimateSortOrder === 'oldest') return a.id - b.id
+      if (estimateSortOrder === 'price-high') return b.subTotal - a.subTotal
+      if (estimateSortOrder === 'price-low') return a.subTotal - b.subTotal
+      if (estimateSortOrder === 'az') return a.name.localeCompare(b.name)
       return 0
     })
 
+  const filteredProspects = prospects.filter(p => 
+    p.name.toLowerCase().includes(prospectSearchQuery.toLowerCase()) || 
+    (p.address && p.address.toLowerCase().includes(prospectSearchQuery.toLowerCase()))
+  )
+
   return (
     <section className="max-w-7xl mx-auto p-4 md:p-8">
-      <div className="flex justify-between items-end mb-8 print:hidden">
+      <div className="flex justify-between items-end mb-8 print:hidden animate-fade-in-up">
         <div>
           <h2 className="text-4xl font-black text-blue-900 mb-2">Contract Generator</h2>
           {estimate.subTotal === 0 && (
-             <p className="text-orange-500 font-bold text-sm bg-orange-100 px-3 py-1 rounded inline-block">
-               ⚠️ Warning: No active estimate loaded. Select one below or build a new quote.
+             <p className="text-orange-500 font-bold text-sm bg-orange-100 px-3 py-1 rounded inline-block animate-breathe">
+               ⚠️ Warning: No active estimate loaded. Select one below to populate math.
              </p>
           )}
         </div>
-        <button onClick={handlePrint} className="bg-blue-900 text-white px-6 py-3 rounded-xl font-black shadow-lg hover:bg-blue-800 transition">
+        <button onClick={handlePrint} className="bg-blue-900 text-white px-6 py-3 rounded-xl font-black shadow-lg hover:bg-blue-800 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
           <i className="fas fa-print mr-2"></i> Print / Save PDF
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Left Column: Form Controls & Searchable Estimates */}
+        {/* Left Column: Form Controls & Searchable Lists */}
         <div className="lg:col-span-4 space-y-6 print:hidden">
           
           {/* SEARCHABLE ESTIMATES SIDEBAR */}
-          <div className="bg-slate-900 p-6 rounded-3xl shadow-lg border border-slate-800 relative border-t-4 border-yellow-400">
+          <div className="bg-slate-900 p-6 rounded-3xl shadow-lg border border-slate-800 relative border-t-4 border-yellow-400 animate-fade-in-up">
             <h3 className="font-black text-yellow-400 mb-4 text-sm uppercase tracking-widest">
-              <i className="fas fa-search mr-2"></i>Attach Saved Estimate
+              <i className="fas fa-file-invoice-dollar mr-2"></i>1. Attach Estimate
             </h3>
             
             <div className="space-y-3 mb-4">
               <input 
                 type="text" 
-                placeholder="Search name..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search estimate names..." 
+                value={estimateSearchQuery}
+                onChange={(e) => setEstimateSearchQuery(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white font-medium outline-none focus:border-yellow-400 transition"
               />
               <select 
-                value={sortOrder} 
-                onChange={(e) => setSortOrder(e.target.value)}
+                value={estimateSortOrder} 
+                onChange={(e) => setEstimateSortOrder(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 font-bold outline-none focus:border-yellow-400 transition cursor-pointer"
               >
                 <option value="newest">Sort: Newest First</option>
@@ -113,7 +140,7 @@ export default function ContractGenerator() {
               </select>
             </div>
 
-            <div className="max-h-64 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+            <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
               {filteredAndSortedEstimates.length === 0 ? (
                  <p className="text-xs text-slate-500 italic text-center py-4">No matching estimates found.</p>
               ) : (
@@ -132,11 +159,49 @@ export default function ContractGenerator() {
             </div>
           </div>
 
-          {/* Customer Form */}
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-            <h3 className="font-black text-xl text-blue-900 mb-6 border-b border-slate-100 pb-4">
-              <i className="fas fa-address-book mr-2"></i>Customer Details
+          {/* NEW: SEARCHABLE PROSPECT SIDEBAR */}
+          <div className="bg-slate-900 p-6 rounded-3xl shadow-lg border border-slate-800 relative border-t-4 border-blue-500 animate-fade-in-up delay-100">
+            <h3 className="font-black text-blue-400 mb-4 text-sm uppercase tracking-widest">
+              <i className="fas fa-users mr-2"></i>2. Attach Prospect
             </h3>
+            
+            <div className="mb-4">
+              <input 
+                type="text" 
+                placeholder="Search names or address..." 
+                value={prospectSearchQuery}
+                onChange={(e) => setProspectSearchQuery(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white font-medium outline-none focus:border-blue-400 transition"
+              />
+            </div>
+
+            <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+              {filteredProspects.length === 0 ? (
+                 <p className="text-xs text-slate-500 italic text-center py-4">No matching prospects found.</p>
+              ) : (
+                filteredProspects.map(p => (
+                  <button 
+                    key={p.id}
+                    onClick={() => handleSelectProspect(p)}
+                    className="w-full text-left bg-slate-800 border border-slate-700 p-3 rounded-xl hover:border-blue-400 hover:bg-slate-750 transition group flex flex-col"
+                  >
+                    <span className="font-bold text-white text-sm group-hover:text-blue-400 transition truncate w-full">{p.name}</span>
+                    <span className="text-xs text-slate-400 truncate w-full">{p.address || 'No address logged'}</span>
+                    <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold">{p.status}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* MANUAL CUSTOMER DETAILS FORM */}
+          <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 transition-all duration-300 hover:shadow-xl animate-fade-in-up delay-200">
+            <h3 className="font-black text-xl text-blue-900 mb-2">
+              <i className="fas fa-address-book mr-2"></i>3. Customer Details
+            </h3>
+            <p className="text-xs text-slate-500 mb-6 border-b border-slate-100 pb-4">
+              Auto-filled from prospect selection, or type manually to override.
+            </p>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs uppercase font-black text-slate-500 mb-2">Full Name</label>
@@ -168,13 +233,13 @@ export default function ContractGenerator() {
           </div>
         </div>
 
-        {/* Right Column: Live Document Preview */}
-        <div className="lg:col-span-8 bg-white p-12 rounded-sm shadow-2xl border border-slate-200 text-slate-800 font-serif text-sm leading-relaxed print:p-0 print:shadow-none print:border-none print:text-black">
+        {/* Right Column: Live Document Preview - Slides in smoothly */}
+        <div className="lg:col-span-8 bg-white p-12 rounded-sm shadow-2xl border border-slate-200 text-slate-800 font-serif text-sm leading-relaxed print:p-0 print:shadow-none print:border-none print:text-black animate-fade-in-up delay-100 transition-all duration-300 hover:shadow-blue-900/10">
           
           <div className="flex justify-between items-start mb-8 border-b-2 border-slate-800 pb-6">
             <div>
               <h1 className="text-2xl font-black uppercase tracking-widest mb-4">Solar Installation Agreement</h1>
-              <div className="space-y-1 font-medium">
+              <div className="space-y-1 font-medium transition-all duration-300">
                 <p className="font-bold text-lg">{customer.name || 'Client Name'}</p>
                 <p>{customer.address || 'Street Address'}</p>
                 <p>{customer.city || 'City, Province'} {customer.postal}</p>
@@ -197,8 +262,8 @@ export default function ContractGenerator() {
             <h2 className="text-lg font-bold border-b border-slate-300 mb-3 uppercase tracking-wider">Scope of Work</h2>
             <div className="space-y-2">
               <p><strong>Your Solar PV System:</strong> We will determine and confirm the optimum location for your solar panels on the property.</p>
-              <p><strong>Solar Panel System:</strong> {estimate.mountType} Mounted {estimate.kw}kW Solar(PV) {estimate.sysType} System {estimate.batteryKwh > 0 ? `with ${estimate.batteryKwh.toFixed(1)} kWh storage capacity.` : ''}</p>
-              <p><strong>Solar Panel Details:</strong> {estimate.panel} & {estimate.inverter} (or equivalent, solar panel power rating may vary by up to 2.5%).</p>
+              <p className="transition-all duration-300"><strong>Solar Panel System:</strong> <span className="bg-yellow-100 px-1 rounded">{estimate.mountType} Mounted {estimate.kw}kW Solar(PV) {estimate.sysType} System</span> {estimate.batteryKwh > 0 ? `with ${estimate.batteryKwh.toFixed(1)} kWh storage capacity.` : ''}</p>
+              <p className="transition-all duration-300"><strong>Solar Panel Details:</strong> <span className="bg-yellow-100 px-1 rounded">{estimate.panel} & {estimate.inverter}</span> (or equivalent, solar panel power rating may vary by up to 2.5%).</p>
               <p>Our systems include web monitoring devices and setup so that the system owner can see how much the system is generating over time and at any given time.</p>
               <p>Our systems include equipment, wiring, and devices necessary to make a functioning system complete.</p>
               <p>Our systems include planning, design, permitting, installation, labor, system connection, set-up, and testing.</p>
@@ -226,7 +291,7 @@ export default function ContractGenerator() {
             <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Pricing Summary</h2>
             <p className="mb-4">The following is a summary of pricing for this proposal, subject to the validity period, and otherwise subject to change without notice prior to the contract being signed.</p>
             
-            <div className="bg-slate-50 p-6 border border-slate-200">
+            <div className="bg-slate-50 p-6 border border-slate-200 transition-all duration-300 hover:shadow-md">
               <p className="font-bold mb-2">Incentives & Discounts:</p>
               <ul className="mb-4 space-y-1 ml-4 list-disc">
                 <li>25 Year Longi Module Warranty (Parts & Labor)</li>
@@ -245,7 +310,7 @@ export default function ContractGenerator() {
                   </div>
                   <div className="flex justify-between text-xl pt-2">
                     <span className="font-bold">Total Price:</span>
-                    <span className="font-black">{fmt.format(total)}</span>
+                    <span className="font-black bg-yellow-100 px-2 rounded">{fmt.format(total)}</span>
                   </div>
                 </div>
               </div>
@@ -255,22 +320,22 @@ export default function ContractGenerator() {
           <div className="mb-8">
             <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Payment Schedule (No Financing)</h2>
             <p className="mb-2">We require Progress Payments as follows:</p>
-            <table className="w-full text-sm text-left border-collapse mb-4">
+            <table className="w-full text-sm text-left border-collapse mb-4 transition-all duration-300">
               <tbody>
-                <tr className="border-b border-slate-200">
-                  <td className="py-2 font-bold w-1/4">15% Deposit:</td>
-                  <td className="py-2 font-black w-1/4">{fmt.format(deposit)}</td>
-                  <td className="py-2 text-slate-600">Payment due upon signing of this agreement</td>
+                <tr className="border-b border-slate-200 hover:bg-slate-50">
+                  <td className="py-3 font-bold w-1/4 pl-2">15% Deposit:</td>
+                  <td className="py-3 font-black w-1/4">{fmt.format(deposit)}</td>
+                  <td className="py-3 text-slate-600">Payment due upon signing of this agreement</td>
                 </tr>
-                <tr className="border-b border-slate-200">
-                  <td className="py-2 font-bold">40% Progress:</td>
-                  <td className="py-2 font-black">{fmt.format(progressPayment)}</td>
-                  <td className="py-2 text-slate-600">Payment due at time of Material Order</td>
+                <tr className="border-b border-slate-200 hover:bg-slate-50">
+                  <td className="py-3 font-bold pl-2">40% Progress:</td>
+                  <td className="py-3 font-black">{fmt.format(progressPayment)}</td>
+                  <td className="py-3 text-slate-600">Payment due at time of Material Order</td>
                 </tr>
-                <tr className="border-b border-slate-200">
-                  <td className="py-2 font-bold">45% Final:</td>
-                  <td className="py-2 font-black">{fmt.format(finalPayment)}</td>
-                  <td className="py-2 text-slate-600">Payment due upon physical completion, when all equipment is installed.</td>
+                <tr className="border-b border-slate-200 hover:bg-slate-50">
+                  <td className="py-3 font-bold pl-2">45% Final:</td>
+                  <td className="py-3 font-black">{fmt.format(finalPayment)}</td>
+                  <td className="py-3 text-slate-600">Payment due upon physical completion, when all equipment is installed.</td>
                 </tr>
               </tbody>
             </table>
@@ -280,12 +345,12 @@ export default function ContractGenerator() {
           <div className="mb-8">
             <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Financing Option = 2.99% Fee</h2>
             <p className="mb-2">We require Progress Payments as follows:</p>
-            <table className="w-full text-sm text-left border-collapse mb-4">
+            <table className="w-full text-sm text-left border-collapse mb-4 transition-all duration-300">
               <tbody>
-                <tr className="border-b border-slate-200">
-                  <td className="py-2 font-bold w-1/4">17.99% Security Deposit:</td>
-                  <td className="py-2 font-black w-1/4">{fmt.format(securityDeposit)}</td>
-                  <td className="py-2 text-slate-600">Due upon signing of this agreement.</td>
+                <tr className="border-b border-slate-200 hover:bg-slate-50">
+                  <td className="py-3 font-bold w-1/4 pl-2">17.99% Security Deposit:</td>
+                  <td className="py-3 font-black w-1/4">{fmt.format(securityDeposit)}</td>
+                  <td className="py-3 text-slate-600">Due upon signing of this agreement.</td>
                 </tr>
               </tbody>
             </table>
@@ -303,20 +368,20 @@ export default function ContractGenerator() {
           <div className="mt-12 grid grid-cols-2 gap-12">
             <div>
               <div className="border-b border-black h-8 mb-2"></div>
-              <p className="text-xs font-bold uppercase">Customer Signature</p>
-              <p className="text-sm mt-2">{customer.name}</p>
-              <p className="text-sm">{customer.email}</p>
-              <p className="text-sm">{customer.phone}</p>
+              <p className="text-xs font-bold uppercase text-slate-500">Customer Signature</p>
+              <p className="text-sm mt-2 font-bold transition-all duration-300">{customer.name}</p>
+              <p className="text-sm transition-all duration-300">{customer.email}</p>
+              <p className="text-sm transition-all duration-300">{customer.phone}</p>
               <div className="border-b border-black h-8 mt-6 mb-2 w-1/2"></div>
-              <p className="text-xs font-bold uppercase">Date</p>
+              <p className="text-xs font-bold uppercase text-slate-500">Date</p>
             </div>
             <div>
               <div className="border-b border-black h-8 mb-2"></div>
-              <p className="text-xs font-bold uppercase">Company Representative</p>
-              <p className="text-sm mt-2">Mason Greene</p>
+              <p className="text-xs font-bold uppercase text-slate-500">Company Representative</p>
+              <p className="text-sm mt-2 font-bold">Mason Greene</p>
               <p className="text-sm">of; Stardust Solar Temiskaming</p>
               <div className="border-b border-black h-8 mt-11 mb-2 w-1/2"></div>
-              <p className="text-xs font-bold uppercase">Date</p>
+              <p className="text-xs font-bold uppercase text-slate-500">Date</p>
             </div>
           </div>
 

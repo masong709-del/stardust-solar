@@ -1,11 +1,12 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
+import { Camera, UploadCloud, MapPin, CheckCircle2, Circle, Trash2, Download, Image as ImageIcon, Zap, Home, ChevronRight } from 'lucide-react'
 
 const REQUIRED_PHOTOS = [
-  { label: 'Main electrical panel', desc: 'Clear photo of all breakers.' },
-  { label: 'Panel labels / index', desc: 'Photo of the full panel index.' },
-  { label: 'Meter & mast', desc: 'Wide shot showing clearance from roof edge.' },
-  { label: 'Attic access', desc: 'Rafter spacing and size visible.' },
-  { label: 'Roof condition', desc: 'Close-up of shingles near install zone.' },
+  { id: 'panel', label: 'Main Electrical Panel', desc: 'Clear photo of all breakers and main rating.' },
+  { id: 'index', label: 'Panel Labels / Index', desc: 'Photo of the full panel index inside the door.' },
+  { id: 'meter', label: 'Meter & Mast', desc: 'Wide shot showing clearance from roof edge.' },
+  { id: 'attic', label: 'Attic Access', desc: 'Rafter spacing and size visible.' },
+  { id: 'roof', label: 'Roof Condition', desc: 'Close-up of shingles near install zone.' },
 ]
 
 function compressImage(file) {
@@ -26,19 +27,24 @@ function compressImage(file) {
   })
 }
 
-function SurveyPhotos() {
+export default function FieldOps() {
   const [projects, setProjects] = useState(() => JSON.parse(localStorage.getItem('stardustPhotoProjects') || '[]'))
+  
+  // Active Survey State
   const [address, setAddress] = useState('')
   const [pending, setPending] = useState([]) // [{ name, dataURL }]
+  const [checklist, setChecklist] = useState(() => Object.fromEntries(REQUIRED_PHOTOS.map(p => [p.id, false])))
   const [dragging, setDragging] = useState(false)
+  
   const fileRef = useRef()
+  const cameraRef = useRef()
 
   function saveProjects(updated) {
     setProjects(updated)
     try {
       localStorage.setItem('stardustPhotoProjects', JSON.stringify(updated))
     } catch {
-      alert('Storage full — delete old projects to free up space.')
+      alert('Storage full — delete old projects or download them to free up space.')
     }
   }
 
@@ -57,22 +63,34 @@ function SurveyPhotos() {
     handleFiles(e.dataTransfer.files)
   }
 
+  function toggleCheck(id) {
+    setChecklist(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
   function saveProject() {
     if (!address.trim()) { alert('Enter a project address first.'); return }
     if (pending.length === 0) { alert('Upload at least one photo.'); return }
+    
+    const completedTasks = Object.values(checklist).filter(Boolean).length
+    
     const project = {
       id: Date.now(),
       address: address.trim(),
       date: new Date().toLocaleDateString('en-CA'),
       photos: pending.map(p => p.dataURL),
+      score: `${completedTasks}/${REQUIRED_PHOTOS.length}`
     }
+    
     saveProjects([project, ...projects])
+    
+    // Reset form
     setAddress('')
     setPending([])
+    setChecklist(Object.fromEntries(REQUIRED_PHOTOS.map(p => [p.id, false])))
   }
 
   function deleteProject(id) {
-    if (!confirm('Delete this project and all its photos?')) return
+    if (!window.confirm('Delete this survey and all its photos?')) return
     saveProjects(projects.filter(p => p.id !== id))
   }
 
@@ -85,168 +103,204 @@ function SurveyPhotos() {
     })
   }
 
+  const allChecked = Object.values(checklist).every(Boolean)
+
   return (
-    <div className="space-y-8">
-      {/* Required checklist */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Required Photos Checklist</p>
-        <div className="space-y-2">
-          {REQUIRED_PHOTOS.map(({ label, desc }) => (
-            <label key={label} className="flex items-start gap-3 text-sm text-slate-700 cursor-pointer">
-              <input type="checkbox" className="mt-1 w-4 h-4 accent-blue-900 shrink-0" />
-              <span><b>{label}:</b> {desc}</span>
-            </label>
-          ))}
+    <div className="max-w-7xl mx-auto pb-12">
+      <div className="flex justify-between items-end mb-8 animate-fade-in-up">
+        <div>
+          <h2 className="text-4xl font-black text-blue-900 mb-2">Site Survey Database</h2>
+          <p className="text-slate-500 italic">Capture, verify, and store pre-install technical photos.</p>
         </div>
       </div>
 
-      {/* Uploader */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">New Project Upload</p>
-        <input
-          type="text"
-          value={address}
-          onChange={e => setAddress(e.target.value)}
-          placeholder="Project address (e.g. 123 Maple St, New Liskeard)"
-          className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-yellow-400 text-sm mb-4"
-        />
-        {/* Drop zone */}
-        <div
-          onDragOver={e => { e.preventDefault(); setDragging(true) }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-          onClick={() => fileRef.current.click()}
-          className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition ${dragging ? 'border-blue-900 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}
-        >
-          <p className="text-3xl mb-2">📷</p>
-          <p className="text-sm font-black text-slate-600">Drop photos here or click to browse</p>
-          <p className="text-xs text-slate-400 mt-1">Images are auto-compressed to 800px / 60% quality</p>
-          <input ref={fileRef} type="file" multiple accept="image/*" className="hidden" onChange={e => handleFiles(e.target.files)} />
-        </div>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+        
+        {/* LEFT COLUMN: Active Survey Builder */}
+        <div className="xl:col-span-5 space-y-6 animate-fade-in-up delay-100">
+          <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-200 transition-all duration-300 sticky top-10">
+            
+            <h3 className="font-black text-lg text-blue-900 mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+              <Home className="text-yellow-500" size={20} /> Start New Survey
+            </h3>
 
-        {/* Pending thumbnails */}
-        {pending.length > 0 && (
-          <div className="mt-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">{pending.length} photo(s) ready</p>
-            <div className="flex flex-wrap gap-2">
-              {pending.map((p, i) => (
-                <div key={i} className="relative group">
-                  <img src={p.dataURL} alt={p.name} className="w-20 h-20 object-cover rounded-xl border border-slate-200" />
-                  <button
-                    onClick={() => setPending(prev => prev.filter((_, j) => j !== i))}
-                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full text-xs font-black opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
-                  >×</button>
-                </div>
-              ))}
+            {/* Address Input */}
+            <div className="mb-6">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Project Address</label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  value={address}
+                  onChange={e => setAddress(e.target.value)}
+                  placeholder="e.g. 123 Lakeshore Rd, Temiskaming Shores"
+                  className="w-full pl-10 pr-4 py-3 border-2 border-slate-100 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-blue-400 focus:bg-white transition-colors text-sm shadow-inner"
+                />
+              </div>
             </div>
-          </div>
-        )}
 
-        <button
-          onClick={saveProject}
-          className="mt-4 w-full py-3 bg-blue-900 text-white font-black rounded-xl hover:bg-blue-800 transition"
-        >
-          Save Project
-        </button>
-      </div>
-
-      {/* Saved projects gallery */}
-      {projects.length > 0 && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Saved Projects ({projects.length})</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {projects.map(project => (
-              <div key={project.id} className="border border-slate-200 rounded-2xl p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <p className="font-black text-sm text-blue-900">{project.address}</p>
-                    <p className="text-xs text-slate-400">{project.date} · {project.photos.length} photo{project.photos.length !== 1 ? 's' : ''}</p>
-                  </div>
-                  <span className="text-2xl">📁</span>
+            {/* Camera / Upload Actions */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <button 
+                onClick={() => cameraRef.current.click()}
+                className="bg-blue-900 text-white p-4 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-blue-800 transition-all duration-300 transform active:scale-95 shadow-md hover:shadow-lg group"
+              >
+                <div className="bg-blue-800 p-3 rounded-full group-hover:scale-110 transition-transform">
+                  <Camera size={24} className="text-yellow-400" />
                 </div>
-                {/* Thumbnail strip */}
-                <div className="flex gap-1 mb-3">
-                  {project.photos.slice(0, 4).map((url, i) => (
-                    <img key={i} src={url} alt="" className="w-14 h-14 object-cover rounded-lg border border-slate-100" />
-                  ))}
-                  {project.photos.length > 4 && (
-                    <div className="w-14 h-14 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-black text-slate-500">
-                      +{project.photos.length - 4}
+                <span className="text-xs font-black uppercase tracking-wider">Take Photo</span>
+              </button>
+
+              <div 
+                onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={onDrop}
+                onClick={() => fileRef.current.click()}
+                className={`border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-300 transform active:scale-95 ${dragging ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
+              >
+                <div className="bg-slate-100 p-3 rounded-full text-slate-500">
+                  <UploadCloud size={24} />
+                </div>
+                <span className="text-xs font-bold text-slate-500">Upload Files</span>
+              </div>
+
+              {/* Hidden Inputs */}
+              <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleFiles(e.target.files)} />
+              <input ref={fileRef} type="file" multiple accept="image/*" className="hidden" onChange={e => handleFiles(e.target.files)} />
+            </div>
+
+            {/* Pending Photo Strip */}
+            {pending.length > 0 && (
+              <div className="mb-6 animate-fade-in-up">
+                <div className="flex justify-between items-end mb-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-blue-900">Captured Photos ({pending.length})</label>
+                  <span className="text-[10px] text-slate-400 italic">Auto-compressed</span>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar snap-x">
+                  {pending.map((p, i) => (
+                    <div key={i} className="relative group shrink-0 snap-start">
+                      <img src={p.dataURL} alt={p.name} className="w-20 h-20 object-cover rounded-xl border-2 border-slate-200 shadow-sm transition-transform hover:scale-105" />
+                      <button
+                        onClick={() => setPending(prev => prev.filter((_, j) => j !== i))}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-sm font-black opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shadow-md hover:bg-red-600 hover:scale-110"
+                      >×</button>
                     </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => downloadAll(project)}
-                    className="flex-1 py-2 text-xs font-black bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition"
-                  >
-                    ⬇ Download All
-                  </button>
-                  <button
-                    onClick={() => deleteProject(project.id)}
-                    className="py-2 px-3 text-xs font-black bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition"
-                  >
-                    Delete
-                  </button>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+
+            {/* Interactive Validation Checklist */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Validation Checklist</label>
+                {allChecked && <span className="text-[10px] font-bold uppercase tracking-widest text-green-600 flex items-center gap-1"><CheckCircle2 size={12}/> Verified</span>}
+              </div>
+              <div className="space-y-3">
+                {REQUIRED_PHOTOS.map(({ id, label, desc }) => {
+                  const isChecked = checklist[id]
+                  return (
+                    <div 
+                      key={id} 
+                      onClick={() => toggleCheck(id)}
+                      className={`flex items-start gap-3 p-2 rounded-xl cursor-pointer transition-colors ${isChecked ? 'bg-green-50/50' : 'hover:bg-white'}`}
+                    >
+                      <div className="mt-0.5 shrink-0 transition-transform active:scale-75">
+                        {isChecked ? <CheckCircle2 size={20} className="text-green-500" /> : <Circle size={20} className="text-slate-300" />}
+                      </div>
+                      <div>
+                        <p className={`text-sm font-bold transition-colors ${isChecked ? 'text-green-800' : 'text-slate-700'}`}>
+                          {id === 'panel' ? <Zap size={14} className="inline mr-1 text-orange-400 mb-0.5"/> : ''}
+                          {label}
+                        </p>
+                        <p className={`text-xs transition-colors ${isChecked ? 'text-green-600/70' : 'text-slate-500'}`}>{desc}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <button
+              onClick={saveProject}
+              className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300 transform active:scale-95 shadow-lg ${address && pending.length > 0 ? 'bg-green-500 text-white hover:bg-green-400 hover:shadow-green-500/30' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+            >
+              <UploadCloud size={18} /> Save Survey to Database
+            </button>
+
           </div>
         </div>
-      )}
-    </div>
-  )
-}
 
-export default function FieldOps() {
-  const [tab, setTab] = useState('protocol')
+        {/* RIGHT COLUMN: Saved Projects Gallery */}
+        <div className="xl:col-span-7 animate-fade-in-up delay-200">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-black text-xl text-blue-900"><i className="fas fa-folder-open text-yellow-400 mr-2"></i>Completed Surveys</h3>
+            <span className="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">{projects.length} Total</span>
+          </div>
 
-  const TAB = 'px-5 py-2 font-black text-sm rounded-xl transition'
-  const activeTab = `${TAB} bg-blue-900 text-white`
-  const inactiveTab = `${TAB} text-slate-500 hover:text-blue-900`
-
-  return (
-    <div className="max-w-5xl mx-auto">
-      <h2 className="text-4xl font-black text-blue-900 mb-6">Field Operations Protocol</h2>
-
-      {/* Tab bar */}
-      <div className="flex gap-2 mb-8 bg-slate-100 p-1 rounded-2xl w-fit">
-        <button onClick={() => setTab('protocol')} className={tab === 'protocol' ? activeTab : inactiveTab}>
-          🔧 Field Protocol
-        </button>
-        <button onClick={() => setTab('photos')} className={tab === 'photos' ? activeTab : inactiveTab}>
-          📷 Survey Photos
-        </button>
-      </div>
-
-      {tab === 'protocol' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-            <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
-              <span className="text-2xl">📷</span>
-              <h3 className="font-black text-xl text-blue-900">Site Survey Checklist</h3>
+          {projects.length === 0 ? (
+            <div className="bg-slate-100 border-2 border-dashed border-slate-300 rounded-3xl p-16 text-center flex flex-col items-center justify-center">
+              <ImageIcon size={48} className="text-slate-300 mb-4" />
+              <p className="text-slate-500 font-bold text-lg">No surveys saved yet.</p>
+              <p className="text-slate-400 text-sm mt-1">Your saved property photos and technical verifications will appear here.</p>
             </div>
-            <div className="space-y-4">
-              {[
-                { title: '1. Electrical Service', items: ['Main Panel: Clear photo of all breakers.', 'Panel Labels: Photo of the panel index.', 'Meter & Mast: Wide shot showing clearance.'] },
-                { title: '2. Structural', items: ['Attic Access: Rafter spacing and size.', 'Roof Condition: Close-up of shingles.'] },
-              ].map((group) => (
-                <div key={group.title} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <h4 className="font-black text-xs uppercase text-blue-900 tracking-wider mb-2">{group.title}</h4>
-                  {group.items.map((item) => (
-                    <label key={item} className="flex items-start gap-3 text-sm text-slate-700 mb-2 cursor-pointer">
-                      <input type="checkbox" className="mt-1 w-4 h-4 accent-blue-900" />
-                      <span dangerouslySetInnerHTML={{ __html: item.replace(/^([^:]+):/, '<b>$1:</b>') }} />
-                    </label>
-                  ))}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {projects.map((project, idx) => (
+                <div 
+                  key={project.id} 
+                  style={{ animationDelay: `${idx * 50}ms` }}
+                  className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 group flex flex-col animate-fade-in-up"
+                >
+                  
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1 pr-4">
+                      <h4 className="font-black text-blue-900 text-lg leading-tight group-hover:text-blue-700 transition-colors line-clamp-2">{project.address}</h4>
+                      <p className="text-xs text-slate-400 font-medium mt-1">{project.date}</p>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-100 p-2 rounded-xl text-center shrink-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reqs</p>
+                      <p className="text-sm font-black text-green-600">{project.score}</p>
+                    </div>
+                  </div>
+
+                  {/* Thumbnail Mosaic */}
+                  <div className="flex gap-2 mb-6">
+                    {project.photos.slice(0, 3).map((url, i) => (
+                      <img key={i} src={url} alt="" className="w-16 h-16 object-cover rounded-xl border border-slate-200 shadow-sm transition-transform hover:scale-110 cursor-pointer" />
+                    ))}
+                    {project.photos.length > 3 && (
+                      <div className="w-16 h-16 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-sm font-black text-slate-500 shadow-sm">
+                        +{project.photos.length - 3}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Actions */}
+                  <div className="mt-auto flex gap-2 border-t border-slate-100 pt-4">
+                    <button
+                      onClick={() => downloadAll(project)}
+                      className="flex-1 py-2.5 text-xs font-black bg-blue-50 text-blue-900 rounded-xl hover:bg-blue-900 hover:text-white transition-all duration-300 flex items-center justify-center gap-2"
+                    >
+                      <Download size={14} /> Download
+                    </button>
+                    <button
+                      onClick={() => deleteProject(project.id)}
+                      className="py-2.5 px-4 text-xs font-black bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all duration-300"
+                      title="Delete Survey"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
+          )}
         </div>
-      )}
 
-      {tab === 'photos' && <SurveyPhotos />}
+      </div>
     </div>
   )
 }

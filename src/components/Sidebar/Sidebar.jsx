@@ -1,82 +1,104 @@
-import { supabase } from '../../lib/supabase'
-import { useAppStore } from '../../store/appStore'
+import { useAppStore } from '../store/appStore' // Adjust path if needed based on your folder structure
 
-const NAV = [
+const MENU_GROUPS = [
   {
-    label: 'Phase 1: Onboarding',
-    links: [
-      { id: 'welcome', icon: '🏠', label: 'Dashboard' },
-      { id: 'tech', icon: '⚡', label: 'Solar Tech 101' },
-    ],
+    title: "1. Daily Operations",
+    items: [
+      { id: 'dashboard', icon: 'fas fa-home', label: 'Dashboard' },
+      { id: 'tracker', icon: 'fas fa-users', label: 'Customer Tracker' },
+      { id: 'leaderboard', icon: 'fas fa-trophy', label: 'Leaderboard' },
+    ]
   },
   {
-    label: 'Phase 2: The Field',
-    links: [
-      { id: 'script', icon: '💬', label: 'D2D Script Builder' },
-      { id: 'audio', icon: '🎙️', label: 'Audio Driller' },
-      { id: 'objections', icon: '🛡️', label: 'Objection Buster' },
-      { id: 'ops', icon: '🔧', label: 'Field Ops Protocol' },
-    ],
+    title: "2. The Sales Toolkit",
+    items: [
+      { id: 'sketcher', icon: 'fas fa-pen-ruler', label: 'Site Sketcher' },
+      { id: 'builder', icon: 'fas fa-calculator', label: 'Estimate Builder' },
+      { id: 'contract', icon: 'fas fa-file-signature', label: 'Contract Generator' },
+      { id: 'fieldops', icon: 'fas fa-camera', label: 'Site Survey' },
+    ]
   },
   {
-    label: 'Phase 3: Design',
-    links: [
-      { id: 'sketch', icon: '📐', label: 'Site Sketcher' },
-      { id: 'estimate', icon: '📋', label: 'Estimate Builder' },
-      { id: 'library', icon: '📄', label: 'Resources' },
-    ],
+    title: "3. The War Room",
+    items: [
+      { id: 'driller', icon: 'fas fa-microphone-alt', label: 'AI Audio Driller' },
+      { id: 'script', icon: 'fas fa-comment-dots', label: 'Script Builder' },
+      { id: 'objection', icon: 'fas fa-shield-alt', label: 'Objection Buster' },
+      { id: 'tech101', icon: 'fas fa-solar-panel', label: 'Solar Tech 101' },
+    ]
   },
   {
-    label: 'Phase 4: Business',
-    links: [
-      { id: 'customers', icon: '👥', label: 'Customer Tracker' },
-      { id: 'contract', icon: '📝', label: 'Contract Generator' }, // <-- ADDED THIS LINE
-      { id: 'commission', icon: '🧮', label: 'Commission Calc' },
-      { id: 'leaderboard', icon: '🏆', label: 'Leaderboard' },
-    ],
-  },
-]
+    title: "4. Growth & Resources",
+    items: [
+      { id: 'commission', icon: 'fas fa-money-bill-wave', label: 'Commission Calc' },
+      { id: 'resources', icon: 'fas fa-book', label: 'Resources' },
+    ]
+  }
+];
 
 export default function Sidebar() {
-  const { activeSection, setActiveSection, profile } = useAppStore()
+  const { activeSection, setActiveSection } = useAppStore()
 
   return (
-    <aside className="w-72 bg-blue-900 text-white flex flex-col shadow-xl z-50 shrink-0">
-      <div className="p-6 border-b border-blue-800">
-        <h1 className="text-2xl font-black tracking-tighter text-yellow-400 italic">STARDUST SOLAR</h1>
-        <p className="text-[10px] uppercase tracking-widest text-blue-300">Temiskaming Branch</p>
+    <aside className="w-64 bg-slate-900 text-white flex flex-col h-screen shadow-2xl relative z-20">
+      {/* Brand Header */}
+      <div className="p-6 border-b border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-lg">
+            <i className="fas fa-bolt text-blue-900 font-black"></i>
+          </div>
+          <div>
+            <h1 className="font-black text-xl tracking-tighter uppercase">Stardust</h1>
+            <p className="text-[9px] text-yellow-400 font-bold tracking-widest uppercase mt-0.5">Field OS</p>
+          </div>
+        </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-        {NAV.map((group) => (
-          <div key={group.label}>
-            <p className="text-[10px] font-bold text-blue-400 px-3 py-2 mt-3 uppercase tracking-widest">
-              {group.label}
-            </p>
-            {group.links.map(({ id, icon, label }) => (
-              <button
-                key={id}
-                onClick={() => setActiveSection(id)}
-                className={`sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition ${activeSection === id ? 'active bg-yellow-400 text-blue-900 font-bold' : 'hover:bg-blue-800'}`}
-              >
-                <span className="w-5 text-center">{icon}</span>
-                {label}
-              </button>
-            ))}
+      {/* Navigation Groups */}
+      <nav className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+        {MENU_GROUPS.map((group, groupIndex) => (
+          <div key={groupIndex} className="animate-fade-in-up" style={{ animationDelay: `${groupIndex * 100}ms` }}>
+            <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3 px-3">
+              {group.title}
+            </h3>
+            <ul className="space-y-1">
+              {group.items.map((item) => {
+                const isActive = activeSection === item.id
+                return (
+                  <li key={item.id}>
+                    <button
+                      onClick={() => setActiveSection(item.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 group ${
+                        isActive 
+                          ? 'bg-blue-900 text-yellow-400 shadow-md' 
+                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <i className={`${item.icon} w-5 text-center transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}></i>
+                      <span>{item.label}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         ))}
       </nav>
 
-      <div className="p-4 bg-blue-950 border-t border-blue-800 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-black text-white">{profile?.name || 'Rep'}</p>
-          <p className="text-[10px] text-blue-400">v6.0 (Full Stack)</p>
-        </div>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="text-[10px] font-bold text-blue-400 hover:text-white transition uppercase tracking-wider"
+      {/* User Profile Footer */}
+      <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+        <button 
+          onClick={() => setActiveSection('welcome')}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 transition-colors text-left"
         >
-          Sign out
+          <div className="w-8 h-8 rounded-full bg-blue-800 flex items-center justify-center text-white font-bold shadow-inner">
+            M
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-white truncate">Mason Greene</p>
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider truncate">Temiskaming</p>
+          </div>
+          <i className="fas fa-cog text-slate-500 hover:text-white transition-colors"></i>
         </button>
       </div>
     </aside>
