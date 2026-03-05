@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '../../store/appStore'
-import { useProspects } from '../../hooks/useProspects'
 
 export default function ContractGenerator() {
   const { user, customerForContract, estimateForContract } = useAppStore()
   
-// Fetch prospects from LocalStorage
-const [prospects, setProspects] = useState([])
+  // Fetch prospects from LocalStorage
+  const [prospects, setProspects] = useState([])
 
-useEffect(() => {
-  const savedProspects = localStorage.getItem('stardustProspects')
-  if (savedProspects) {
-    setProspects(JSON.parse(savedProspects))
-  }
-}, [])
+  useEffect(() => {
+    const savedProspects = localStorage.getItem('stardustProspects')
+    if (savedProspects) {
+      setProspects(JSON.parse(savedProspects))
+    }
+  }, [])
 
   // Customer State
   const [customer, setCustomer] = useState({
@@ -34,14 +33,14 @@ useEffect(() => {
   const [estimateSortOrder, setEstimateSortOrder] = useState('newest')
 
   useEffect(() => {
-    load()
+    // FIX: Removed the broken load() function here
     setSavedEstimatesList(JSON.parse(localStorage.getItem('stardustEstimates') || '[]'))
 
     // Auto-fill if routed directly from the Tracker
     if (customerForContract) {
       setCustomer(customerForContract)
     }
-  }, [customerForContract, load])
+  }, [customerForContract]) // FIX: Removed 'load' from the dependency array
 
   // Handlers for loading data into the contract
   const handleSelectEstimate = (est) => {
