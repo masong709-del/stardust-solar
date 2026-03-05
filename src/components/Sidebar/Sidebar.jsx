@@ -1,4 +1,4 @@
-import { useAppStore } from '../store/appStore' // Adjust path if needed based on your folder structure
+import { useAppStore } from '../../store/appStore'
 
 const MENU_GROUPS = [
   {
