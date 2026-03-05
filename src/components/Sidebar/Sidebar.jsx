@@ -1,4 +1,5 @@
 import { useAppStore } from '../../store/appStore'
+import { supabase } from '../../lib/supabase'
 
 const MENU_GROUPS = [
   {
@@ -99,6 +100,12 @@ export default function Sidebar() {
             <p className="text-[10px] text-slate-400 uppercase tracking-wider truncate">Temiskaming</p>
           </div>
           <i className="fas fa-cog text-slate-500 hover:text-white transition-colors"></i>
+        </button>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="text-[10px] font-bold text-blue-400 hover:text-white transition uppercase tracking-wider mt-2 w-full text-left px-3"
+        >
+          Sign out
         </button>
       </div>
     </aside>
