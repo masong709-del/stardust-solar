@@ -5,18 +5,28 @@ import { useProspects } from '../../hooks/useProspects'
 export default function ContractGenerator() {
   const { user, customerForContract, estimateForContract } = useAppStore()
   
-  // Fetch prospects from the CRM
-  const { prospects, load } = useProspects(user?.id)
+// Fetch prospects from LocalStorage
+const [prospects, setProspects] = useState([])
 
-  // Customer Form State (Now populated exclusively via dropdown)
+useEffect(() => {
+  const savedProspects = localStorage.getItem('stardustProspects')
+  if (savedProspects) {
+    setProspects(JSON.parse(savedProspects))
+  }
+}, [])
+
+  // Customer State
   const [customer, setCustomer] = useState({
     id: '', name: '', address: '', city: '', postal: '', phone: '', email: ''
   })
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('')
+  const [isManualCustomer, setIsManualCustomer] = useState(false)
 
   // Estimate State
   const [estimate, setEstimate] = useState(estimateForContract || {
     kw: 0, mountType: "Roof", sysType: "Grid-Tied", panel: "TBD", inverter: "TBD", batteryKwh: 0, subTotal: 0, discount: 0
   })
+  const [isManualEstimate, setIsManualEstimate] = useState(false)
 
   // Sidebar Estimate Search States
   const [savedEstimatesList, setSavedEstimatesList] = useState([])
@@ -34,20 +44,28 @@ export default function ContractGenerator() {
   }, [customerForContract, load])
 
   // Handlers for loading data into the contract
-  const handleSelectEstimate = (est) => setEstimate(est)
+  const handleSelectEstimate = (est) => {
+    setEstimate(est)
+    setIsManualEstimate(false)
+  }
   
-  const handleSelectProspectChange = (e) => {
-    const selectedId = e.target.value
-    if (!selectedId) {
-      setCustomer({ id: '', name: '', address: '', city: '', postal: '', phone: '', email: '' })
-      return
-    }
-    
-    // Find the prospect. (Using == to handle string/number mismatches safely)
-    const selectedProspect = prospects.find(p => p.id == selectedId)
-    if (selectedProspect) {
-      setCustomer(selectedProspect)
-    }
+  const handleSelectCustomer = (prospect) => {
+    setCustomer(prospect)
+    setIsManualCustomer(false)
+  }
+
+  const handleManualEstimateChange = (e) => {
+    const { name, value } = e.target
+    setEstimate(prev => ({
+      ...prev,
+      // Ensure numbers are parsed correctly for math downstream
+      [name]: ['kw', 'batteryKwh', 'subTotal', 'discount'].includes(name) ? (parseFloat(value) || 0) : value
+    }))
+  }
+
+  const handleManualCustomerChange = (e) => {
+    const { name, value } = e.target
+    setCustomer(prev => ({ ...prev, [name]: value, id: 'manual' }))
   }
 
   // Formatting & Math
@@ -65,7 +83,7 @@ export default function ContractGenerator() {
 
   const handlePrint = () => window.print()
 
-  // Filter/Sort Logic for Estimates
+  // Filter/Sort Logic
   const filteredAndSortedEstimates = savedEstimatesList
     .filter(est => est.name.toLowerCase().includes(estimateSearchQuery.toLowerCase()))
     .sort((a, b) => {
@@ -77,11 +95,18 @@ export default function ContractGenerator() {
       return 0
     })
 
+  const filteredProspects = prospects.filter(p => 
+    p.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || 
+    (p.address && p.address.toLowerCase().includes(customerSearchQuery.toLowerCase()))
+  )
+
   const isContractReady = customer.name && estimate.subTotal > 0
 
   return (
-    // PRINTER FIX: Remove max-widths and padding on print
-    <section className="max-w-7xl mx-auto p-4 md:p-8 print:p-0 print:m-0 print:max-w-none">
+    // PRINTER FIX: Force standard document flow, hide any global background artifacts
+    <section className="max-w-7xl mx-auto p-4 md:p-8 print:p-0 print:m-0 print:max-w-none print:bg-white">
+      
+      {/* UI Header - Hidden on Print */}
       <div className="flex justify-between items-start md:items-end mb-8 print:hidden animate-fade-in-up flex-col md:flex-row gap-4">
         <div>
           <h2 className="text-4xl font-black text-blue-900 mb-4">Contract Generator</h2>
@@ -107,101 +132,141 @@ export default function ContractGenerator() {
         </button>
       </div>
 
-      {/* PRINTER FIX: Turn the Grid into a standard vertical block for printing */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 print:block print:w-full">
         
-        {/* Left Column: Form Controls & Searchable Lists */}
+        {/* Left Column: Form Controls & Searchable Lists - HIDDEN ON PRINT */}
         <div className="lg:col-span-4 space-y-6 print:hidden">
           
-          {/* SEARCHABLE ESTIMATES SIDEBAR */}
+          {/* ESTIMATE SELECTOR / MANUAL ENTRY */}
           <div className="bg-slate-900 p-6 rounded-3xl shadow-lg border border-slate-800 relative border-t-4 border-yellow-400 animate-fade-in-up">
-            <h3 className="font-black text-yellow-400 mb-4 text-sm uppercase tracking-widest flex items-center">
-              <i className="fas fa-file-invoice-dollar mr-2 text-lg"></i>1. Attach Estimate
-            </h3>
-            
-            <div className="space-y-3 mb-4">
-              <input 
-                type="text" 
-                placeholder="Search estimate names..." 
-                value={estimateSearchQuery}
-                onChange={(e) => setEstimateSearchQuery(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white font-medium outline-none focus:border-yellow-400 transition shadow-inner"
-              />
-              <select 
-                value={estimateSortOrder} 
-                onChange={(e) => setEstimateSortOrder(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-300 font-bold outline-none focus:border-yellow-400 transition cursor-pointer shadow-inner"
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-yellow-400 text-sm uppercase tracking-widest flex items-center">
+                <i className="fas fa-file-invoice-dollar mr-2 text-lg"></i>1. Estimate
+              </h3>
+              <button 
+                onClick={() => setIsManualEstimate(!isManualEstimate)}
+                className="text-xs text-slate-400 hover:text-white underline font-bold transition-colors"
               >
-                <option value="newest">Sort: Newest First</option>
-                <option value="oldest">Sort: Oldest First</option>
-                <option value="price-high">Sort: Price High-Low</option>
-                <option value="price-low">Sort: Price Low-High</option>
-                <option value="az">Sort: Name A-Z</option>
-              </select>
+                {isManualEstimate ? 'Search Saved' : 'Manual Entry'}
+              </button>
             </div>
-
-            <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-              {filteredAndSortedEstimates.length === 0 ? (
-                 <p className="text-xs text-slate-500 italic text-center py-6">No matching estimates found.</p>
-              ) : (
-                filteredAndSortedEstimates.map(est => (
-                  <button 
-                    key={est.id}
-                    onClick={() => handleSelectEstimate(est)}
-                    className="w-full text-left bg-slate-800 border border-slate-700 p-4 rounded-xl hover:border-yellow-400 hover:bg-slate-750 transition-all duration-200 group flex flex-col shadow-sm"
+            
+            {!isManualEstimate ? (
+              <>
+                <div className="space-y-3 mb-4">
+                  <input 
+                    type="text" 
+                    placeholder="Search estimate names..." 
+                    value={estimateSearchQuery}
+                    onChange={(e) => setEstimateSearchQuery(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white font-medium outline-none focus:border-yellow-400 transition shadow-inner"
+                  />
+                  <select 
+                    value={estimateSortOrder} 
+                    onChange={(e) => setEstimateSortOrder(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-300 font-bold outline-none focus:border-yellow-400 transition cursor-pointer shadow-inner"
                   >
-                    <span className="font-bold text-white text-sm group-hover:text-yellow-400 transition-colors truncate w-full">{est.name}</span>
-                    <span className="text-xs text-slate-400 mt-1">{est.date} • {est.kw}kW</span>
-                    <span className="text-green-400 font-black mt-2 text-lg">{fmt.format(est.subTotal)}</span>
-                  </button>
-                ))
-              )}
-            </div>
+                    <option value="newest">Sort: Newest First</option>
+                    <option value="oldest">Sort: Oldest First</option>
+                    <option value="price-high">Sort: Price High-Low</option>
+                    <option value="price-low">Sort: Price Low-High</option>
+                    <option value="az">Sort: Name A-Z</option>
+                  </select>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                  {filteredAndSortedEstimates.length === 0 ? (
+                     <p className="text-xs text-slate-500 italic text-center py-6">No matching estimates found.</p>
+                  ) : (
+                    filteredAndSortedEstimates.map(est => (
+                      <button 
+                        key={est.id}
+                        onClick={() => handleSelectEstimate(est)}
+                        className="w-full text-left bg-slate-800 border border-slate-700 p-4 rounded-xl hover:border-yellow-400 hover:bg-slate-750 transition-all duration-200 group flex flex-col shadow-sm"
+                      >
+                        <span className="font-bold text-white text-sm group-hover:text-yellow-400 transition-colors truncate w-full">{est.name}</span>
+                        <span className="text-xs text-slate-400 mt-1">{est.date} • {est.kw}kW</span>
+                        <span className="text-green-400 font-black mt-2 text-lg">{fmt.format(est.subTotal)}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 animate-fade-in-up">
+                <input type="number" name="kw" placeholder="System kW" value={estimate.kw || ''} onChange={handleManualEstimateChange} className="col-span-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white" />
+                <select name="mountType" value={estimate.mountType} onChange={handleManualEstimateChange} className="col-span-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white">
+                  <option value="Roof">Roof Mount</option>
+                  <option value="Ground">Ground Mount</option>
+                </select>
+                <input type="text" name="panel" placeholder="Panel Details" value={estimate.panel} onChange={handleManualEstimateChange} className="col-span-2 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white" />
+                <input type="text" name="inverter" placeholder="Inverter Details" value={estimate.inverter} onChange={handleManualEstimateChange} className="col-span-2 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white" />
+                <input type="number" name="batteryKwh" placeholder="Battery kWh" value={estimate.batteryKwh || ''} onChange={handleManualEstimateChange} className="col-span-2 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white" />
+                <input type="number" name="subTotal" placeholder="Sub-Total ($)" value={estimate.subTotal || ''} onChange={handleManualEstimateChange} className="col-span-2 px-3 py-2 bg-slate-800 border border-yellow-500 rounded-lg text-sm text-white font-bold" />
+              </div>
+            )}
           </div>
 
-          {/* MANDATORY CUSTOMER DROPDOWN */}
+          {/* CUSTOMER SELECTOR / MANUAL ENTRY */}
           <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 transition-all duration-300 hover:shadow-xl animate-fade-in-up delay-100">
-            <h3 className="font-black text-xl text-blue-900 mb-2 flex items-center">
-              <i className="fas fa-address-book mr-2 text-blue-500"></i>2. Select Customer
-            </h3>
-            <p className="text-xs text-slate-500 mb-6 border-b border-slate-100 pb-4">
-              Select a prospect from the CRM database. To add or edit a client, return to the Customer Tracker.
-            </p>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-xl text-blue-900 flex items-center">
+                <i className="fas fa-address-book mr-2 text-blue-500"></i>2. Customer
+              </h3>
+              <button 
+                onClick={() => setIsManualCustomer(!isManualCustomer)}
+                className="text-xs text-blue-600 hover:text-blue-900 underline font-bold transition-colors"
+              >
+                {isManualCustomer ? 'Search CRM' : 'Manual Entry'}
+              </button>
+            </div>
             
-            <select 
-              value={customer.id || ''}
-              onChange={handleSelectProspectChange}
-              className="w-full p-4 border-2 border-slate-200 rounded-xl bg-slate-50 focus:border-blue-500 focus:bg-white focus:shadow-md outline-none transition-all duration-300 cursor-pointer font-black text-blue-900 shadow-sm"
-            >
-              <option value="">-- Choose a Customer --</option>
-              {prospects.map(p => (
-                <option key={p.id} value={p.id}>{p.name} {p.address ? `- ${p.address}` : ''}</option>
-              ))}
-            </select>
+            {!isManualCustomer ? (
+              <>
+                <div className="space-y-3 mb-4">
+                  <input 
+                    type="text" 
+                    placeholder="Search by name or address..." 
+                    value={customerSearchQuery}
+                    onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:border-blue-500 transition shadow-inner"
+                  />
+                </div>
 
-            {/* Read-Only Verification Card */}
-            {customer.name && (
-              <div className="mt-6 bg-gradient-to-br from-blue-50 to-white border border-blue-100 p-5 rounded-2xl animate-fade-in-up shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-2 flex items-center gap-1">
-                  <i className="fas fa-check-circle"></i> Loaded Client Data
-                </p>
-                <p className="font-black text-blue-900 text-lg">{customer.name}</p>
-                {customer.address && <p className="text-sm text-slate-600 mt-2 font-medium">📍 {customer.address}</p>}
-                {(customer.phone || customer.email) && (
-                  <p className="text-sm text-slate-600 mt-1 font-medium">
-                    {customer.phone && `📞 ${customer.phone}`} 
-                    {customer.phone && customer.email && ' | '}
-                    {customer.email && `✉️ ${customer.email}`}
-                  </p>
-                )}
+                <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                  {filteredProspects.length === 0 ? (
+                     <p className="text-xs text-slate-500 italic text-center py-6">No matching customers found in CRM.</p>
+                  ) : (
+                    filteredProspects.map(p => (
+                      <button 
+                        key={p.id}
+                        onClick={() => handleSelectCustomer(p)}
+                        className={`w-full text-left p-4 rounded-xl border transition-all duration-200 group flex flex-col shadow-sm ${customer.id === p.id ? 'bg-blue-50 border-blue-400' : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
+                      >
+                        <span className="font-bold text-blue-900 text-sm">{p.name}</span>
+                        {p.address && <span className="text-xs text-slate-500 mt-1 truncate w-full">{p.address}</span>}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3 animate-fade-in-up">
+                <input type="text" name="name" placeholder="Full Name" value={customer.name} onChange={handleManualCustomerChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                <input type="text" name="address" placeholder="Street Address" value={customer.address} onChange={handleManualCustomerChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="text" name="city" placeholder="City" value={customer.city} onChange={handleManualCustomerChange} className="col-span-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                  <input type="text" name="postal" placeholder="Postal Code" value={customer.postal} onChange={handleManualCustomerChange} className="col-span-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <input type="email" name="email" placeholder="Email" value={customer.email} onChange={handleManualCustomerChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                <input type="tel" name="phone" placeholder="Phone" value={customer.phone} onChange={handleManualCustomerChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Column: Live Document Preview */}
-        {/* PRINTER FIX: Force full width, remove shadows/borders/backgrounds */}
-        <div className="lg:col-span-8 bg-white p-8 md:p-12 rounded-sm shadow-2xl border border-slate-200 text-slate-800 font-serif text-sm leading-relaxed print:w-full print:m-0 print:p-0 print:shadow-none print:border-none print:text-black print:block animate-fade-in-up delay-200">
+        {/* Right Column: Live Document Preview / PERFECT PRINT CONTAINER */}
+        <div className="lg:col-span-8 bg-white p-8 md:p-12 rounded-sm shadow-2xl border border-slate-200 text-slate-800 font-serif text-sm leading-relaxed print:w-full print:absolute print:left-0 print:top-0 print:m-0 print:p-8 print:shadow-none print:border-none print:bg-white print:text-black print:block animate-fade-in-up delay-200">
           
           <div className="flex justify-between items-start mb-8 border-b-2 border-slate-800 pb-6 print:break-inside-avoid">
             <div>
@@ -226,7 +291,7 @@ export default function ContractGenerator() {
           </div>
 
           <div className="mb-6 print:break-inside-avoid">
-            <h2 className="text-lg font-bold border-b border-slate-300 mb-3 uppercase tracking-wider">Scope of Work</h2>
+            <h2 className="text-lg font-bold border-b border-slate-300 mb-3 uppercase tracking-wider text-black">Scope of Work</h2>
             <div className="space-y-2">
               <p><strong>Your Solar PV System:</strong> We will determine and confirm the optimum location for your solar panels on the property.</p>
               <p><strong>Solar Panel System:</strong> <span className="bg-yellow-100 print:bg-transparent px-1 rounded">{estimate.mountType} Mounted {estimate.kw}kW Solar(PV) {estimate.sysType} System</span> {estimate.batteryKwh > 0 ? `with ${estimate.batteryKwh.toFixed(1)} kWh storage capacity.` : ''}</p>
@@ -238,7 +303,7 @@ export default function ContractGenerator() {
           </div>
 
           <div className="mb-6 space-y-4 text-[13px] text-justify print:text-[12px]">
-            <h2 className="text-lg font-bold border-b border-slate-300 mb-3 uppercase tracking-wider print:break-inside-avoid">Notes</h2>
+            <h2 className="text-lg font-bold border-b border-slate-300 mb-3 uppercase tracking-wider text-black print:break-inside-avoid">Notes</h2>
             <p className="print:break-inside-avoid"><strong>Confidentiality:</strong> This Confidential Proposal has been proposed exclusively for you. This remains the property of Stardust Solar until accepted and may not be given to or shown to any other person or company.</p>
             <p className="print:break-inside-avoid"><strong>Warranty:</strong> All Stardust Solar crews working on your roof and your electrical system are certified. We are so confident in our work that we offer you a 5-Year Workmanship Warranty on our labor, in addition to the manufacturer’s warranties on the equipment installed. As well, we offer a 5-Year Roof Warranty along with your solar and workmanship warranties, pending a roofing inspection. This covers you for any leaks as a result of our work on your solar roof faces.</p>
             <p className="print:break-inside-avoid"><strong>Insurance:</strong> Our company carries a minimum of $5 million in commercial liability and ensures workers are registered in accordance with local occupational health and safety and workers compensation requirements. It is the responsibility of the customer to ensure that they carry comprehensive liability cover in excess of $5 million if they so require.</p>
@@ -252,12 +317,11 @@ export default function ContractGenerator() {
             <p className="print:break-inside-avoid"><strong>Cancellation:</strong> The customer may cancel the installation during any stage of the project. If the customer cancels prior to the installation start-date, any deposits and progress payments are fully refundable, less any permit fees or other expenses incurred, and a 25% restocking fee on any solar equipment & materials purchased. If the customer cancels after the physical installation has begun, no refunds will be available. Security deposits for financing customers will be fully refundable on completion of the job, less any remaining balance owing.</p>
           </div>
 
-          {/* PRINTER FIX: Force the Pricing Summary onto Page 2 */}
           <div className="mb-6 pt-6 print:break-before-page">
-            <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Pricing Summary</h2>
+            <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider text-black">Pricing Summary</h2>
             <p className="mb-4">The following is a summary of pricing for this proposal, subject to the validity period, and otherwise subject to change without notice prior to the contract being signed.</p>
             
-            <div className="bg-slate-50 print:bg-transparent p-6 border border-slate-200 transition-all duration-300 hover:shadow-md print:break-inside-avoid">
+            <div className="bg-slate-50 print:bg-transparent p-6 border border-slate-200 print:border-none transition-all duration-300 hover:shadow-md print:break-inside-avoid">
               <p className="font-bold mb-2">Incentives & Discounts:</p>
               <ul className="mb-4 space-y-1 ml-4 list-disc">
                 <li>25 Year Longi Module Warranty (Parts & Labor)</li>
@@ -284,49 +348,49 @@ export default function ContractGenerator() {
           </div>
 
           <div className="mb-8 print:break-inside-avoid">
-            <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Payment Schedule (No Financing)</h2>
+            <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider text-black">Payment Schedule (No Financing)</h2>
             <p className="mb-2">We require Progress Payments as follows:</p>
             <table className="w-full text-sm text-left border-collapse mb-4 transition-all duration-300">
               <tbody>
-                <tr className="border-b border-slate-200 hover:bg-slate-50">
+                <tr className="border-b border-slate-200 hover:bg-slate-50 print:hover:bg-transparent">
                   <td className="py-3 font-bold w-1/4 pl-2">15% Deposit:</td>
                   <td className="py-3 font-black w-1/4">{fmt.format(deposit)}</td>
-                  <td className="py-3 text-slate-600">Payment due upon signing of this agreement</td>
+                  <td className="py-3 text-slate-600 print:text-black">Payment due upon signing of this agreement</td>
                 </tr>
-                <tr className="border-b border-slate-200 hover:bg-slate-50">
+                <tr className="border-b border-slate-200 hover:bg-slate-50 print:hover:bg-transparent">
                   <td className="py-3 font-bold pl-2">40% Progress:</td>
                   <td className="py-3 font-black">{fmt.format(progressPayment)}</td>
-                  <td className="py-3 text-slate-600">Payment due at time of Material Order</td>
+                  <td className="py-3 text-slate-600 print:text-black">Payment due at time of Material Order</td>
                 </tr>
-                <tr className="border-b border-slate-200 hover:bg-slate-50">
+                <tr className="border-b border-slate-200 hover:bg-slate-50 print:hover:bg-transparent">
                   <td className="py-3 font-bold pl-2">45% Final:</td>
                   <td className="py-3 font-black">{fmt.format(finalPayment)}</td>
-                  <td className="py-3 text-slate-600">Payment due upon physical completion, when all equipment is installed.</td>
+                  <td className="py-3 text-slate-600 print:text-black">Payment due upon physical completion.</td>
                 </tr>
               </tbody>
             </table>
-            <p className="mt-4 italic">._______________________________________ Initial Here to Opt-In to Payment Schedule</p>
+            <p className="mt-4 italic font-bold">._______________________________________ Initial Here to Opt-In</p>
           </div>
 
           <div className="mb-8 print:break-inside-avoid">
-            <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Financing Option = 2.99% Fee</h2>
+            <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider text-black">Financing Option = 2.99% Fee</h2>
             <p className="mb-2">We require Progress Payments as follows:</p>
             <table className="w-full text-sm text-left border-collapse mb-4 transition-all duration-300">
               <tbody>
-                <tr className="border-b border-slate-200 hover:bg-slate-50">
+                <tr className="border-b border-slate-200 hover:bg-slate-50 print:hover:bg-transparent">
                   <td className="py-3 font-bold w-1/4 pl-2">17.99% Security Deposit:</td>
                   <td className="py-3 font-black w-1/4">{fmt.format(securityDeposit)}</td>
-                  <td className="py-3 text-slate-600">Due upon signing of this agreement.</td>
+                  <td className="py-3 text-slate-600 print:text-black">Due upon signing of this agreement.</td>
                 </tr>
               </tbody>
             </table>
-            <p className="text-xs text-slate-600 mb-2">Security deposits are fully refundable upon job completion and final financing payment. Less the 2.99% financing fee.</p>
-            <p className="text-xs text-slate-600 mb-4">Financing Terms will be set out in a separate financing agreement, at which time customers will be given the option to Opt-Out of Financing.</p>
-            <p className="mt-4 italic">._______________________________________ Initial Here to Opt-In to Financing</p>
+            <p className="text-xs text-slate-600 print:text-black mb-2">Security deposits are fully refundable upon job completion and final financing payment. Less the 2.99% financing fee.</p>
+            <p className="text-xs text-slate-600 print:text-black mb-4">Financing Terms will be set out in a separate financing agreement, at which time customers will be given the option to Opt-Out of Financing.</p>
+            <p className="mt-4 italic font-bold">._______________________________________ Initial Here to Opt-In to Financing</p>
           </div>
 
           <div className="mt-12 pt-8 border-t-2 border-slate-800 text-[12px] text-justify space-y-4 print:break-inside-avoid">
-            <h2 className="text-lg font-bold uppercase tracking-wider mb-2">Confirmation of Contract</h2>
+            <h2 className="text-lg font-bold uppercase tracking-wider mb-2 text-black">Confirmation of Contract</h2>
             <p>On signature by all the parties this Confidential Proposal constitutes a binding contract and records the entire understanding. The company entering into this contract is Stardust Solar and will be bound by all the terms and conditions set out in this document. The person(s) signing as customer confirms that he/she is a registered owner(s) of the property or is authorized to sign the contract and bind the owner. No other understanding, collateral or otherwise, shall be binding unless agreed in writing and signed by all parties. Receipt of a copy of this contract is hereby acknowledged. All contracts are subject to a site assessment and verification of the feasibility of the scope of work by Stardust Solar. Additional terms and conditions are attached.</p>
             <p>The parties agree to indemnify and defend the other party and its directors, officers, employees, agents, representatives, and affiliates and hold them harmless from and against any and all losses, liabilities, damages, claims, suits, actions, judgments, assessments, costs and expenses, including without limitation interest, penalties, attorney fees, any and all expenses incurred in investigating, preparing, or defending against any litigation, commenced or threatened, or any claim whatsoever, and any and all amounts paid in settlement of any claim or litigation asserted against, imposed on, or incurred or suffered by any of them, directly or indirectly, as a result of or arising from the negligent or wrongful acts or omissions of the other party, from any breach of this agreement by the other party, or from any finding, judgment or other determination or settlement whereby the customer is deemed or considered to be the employer of contractor or of contractor's personnel.</p>
           </div>
@@ -334,32 +398,20 @@ export default function ContractGenerator() {
           <div className="mt-12 grid grid-cols-2 gap-12 print:break-inside-avoid">
             <div>
               <div className="border-b border-black h-8 mb-2"></div>
-              <p className="text-xs font-bold uppercase text-slate-500">Customer Signature</p>
+              <p className="text-xs font-bold uppercase text-slate-500 print:text-black">Customer Signature</p>
               <p className="text-sm mt-2 font-bold transition-all duration-300">{customer.name}</p>
               <p className="text-sm transition-all duration-300">{customer.email}</p>
               <p className="text-sm transition-all duration-300">{customer.phone}</p>
               <div className="border-b border-black h-8 mt-6 mb-2 w-1/2"></div>
-              <p className="text-xs font-bold uppercase text-slate-500">Date</p>
+              <p className="text-xs font-bold uppercase text-slate-500 print:text-black">Date</p>
             </div>
             <div>
               <div className="border-b border-black h-8 mb-2"></div>
-              <p className="text-xs font-bold uppercase text-slate-500">Company Representative</p>
+              <p className="text-xs font-bold uppercase text-slate-500 print:text-black">Company Representative</p>
               <p className="text-sm mt-2 font-bold">Mason Greene</p>
               <p className="text-sm">of; Stardust Solar Temiskaming</p>
               <div className="border-b border-black h-8 mt-11 mb-2 w-1/2"></div>
-              <p className="text-xs font-bold uppercase text-slate-500">Date</p>
-            </div>
-          </div>
-
-          <div className="mt-12 print:break-before-page">
-            <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Additional Notes</h2>
-            <div className="space-y-8 mt-8">
-              <div className="border-b border-slate-400 w-full"></div>
-              <div className="border-b border-slate-400 w-full"></div>
-              <div className="border-b border-slate-400 w-full"></div>
-              <div className="border-b border-slate-400 w-full"></div>
-              <div className="border-b border-slate-400 w-full"></div>
-              <div className="border-b border-slate-400 w-full"></div>
+              <p className="text-xs font-bold uppercase text-slate-500 print:text-black">Date</p>
             </div>
           </div>
 

@@ -88,12 +88,27 @@ export default function AudioDriller() {
   const [speakingFeedback, setSpeakingFeedback] = useState(false)
   const [drillCount, setDrillCount] = useState(() => parseInt(localStorage.getItem('solarDrillCount') || '0'))
   const [supported, setSupported] = useState(true)
+  
+  // NEW: Teleprompter tracking state
+  const [activeWordIndex, setActiveWordIndex] = useState(-1)
 
   const recognitionRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
+  
+  // NEW: Refs to keep track of state inside the speech recognition closure
+  const accumulatedTranscriptRef = useRef('')
+  const activeIndexRef = useRef(-1)
+  const scriptWordsRef = useRef([])
 
   const currentScript = savedScripts[selectedIdx]
+
+  // Update script words ref when script changes
+  useEffect(() => {
+    scriptWordsRef.current = currentScript ? currentScript.script.split(/\s+/) : []
+    setActiveWordIndex(-1)
+    activeIndexRef.current = -1
+  }, [currentScript])
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -102,16 +117,48 @@ export default function AudioDriller() {
     rec.continuous = true
     rec.interimResults = true
     rec.lang = 'en-CA'
+    
     rec.onresult = (e) => {
-      let final = ''
-      let interim = ''
+      let currentInterim = ''
+      let newFinal = ''
+      
+      // 1. Better Transcript Accumulation (Catches Fillers)
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) final += e.results[i][0].transcript + ' '
-        else interim += e.results[i][0].transcript
+        if (e.results[i].isFinal) {
+          newFinal += e.results[i][0].transcript + ' '
+        } else {
+          currentInterim += e.results[i][0].transcript
+        }
       }
-      setTranscript(prev => prev + final)
-      setInterimTranscript(interim)
+      
+      if (newFinal) {
+        accumulatedTranscriptRef.current += newFinal
+      }
+      
+      const currentFullTranscript = accumulatedTranscriptRef.current + currentInterim
+      setTranscript(currentFullTranscript)
+      setInterimTranscript(currentInterim)
+
+      // 2. Pro-Level "Sliding Window" Teleprompter Matcher
+      const spokenWords = currentFullTranscript.toLowerCase().trim().split(/\s+/)
+      if (spokenWords.length > 0) {
+        // Grab the last spoken word and clean it
+        const lastSpokenWord = spokenWords[spokenWords.length - 1].replace(/[^\w]/g, '')
+        
+        // Only search the next 5 words in the script to allow for skipping/stuttering
+        const searchLimit = Math.min(activeIndexRef.current + 6, scriptWordsRef.current.length)
+        
+        for (let i = activeIndexRef.current + 1; i < searchLimit; i++) {
+          const cleanScriptWord = scriptWordsRef.current[i].toLowerCase().replace(/[^\w]/g, '')
+          if (cleanScriptWord === lastSpokenWord && lastSpokenWord !== '') {
+            activeIndexRef.current = i
+            setActiveWordIndex(i)
+            break
+          }
+        }
+      }
     }
+    
     rec.onerror = () => {}
     recognitionRef.current = rec
     return () => rec.abort()
@@ -122,6 +169,9 @@ export default function AudioDriller() {
     setInterimTranscript('')
     setFeedback(null)
     setAudioURL(null)
+    setActiveWordIndex(-1)
+    activeIndexRef.current = -1
+    accumulatedTranscriptRef.current = ''
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -197,10 +247,8 @@ export default function AudioDriller() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* LEFT COLUMN: Controls & Teleprompter */}
+        {/* LEFT COLUMN: Controls & Script Selection */}
         <div className="lg:col-span-5 space-y-6 animate-fade-in-up delay-100">
-          
-          {/* Script Selector */}
           <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 transition-all duration-300 hover:shadow-xl">
             <h3 className="text-sm font-black uppercase tracking-widest text-blue-900 mb-4 flex items-center gap-2">
               <FileText size={16} className="text-yellow-500"/> Select Script
@@ -222,7 +270,6 @@ export default function AudioDriller() {
             )}
           </div>
 
-          {/* Record Control Center */}
           <div className="bg-white p-8 rounded-3xl shadow-lg border border-slate-200 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-xl py-12">
             <div className="relative mb-6">
               {!isRecording ? (
@@ -250,7 +297,6 @@ export default function AudioDriller() {
               {isRecording ? '● Recording Live' : 'Tap to Start Drill'}
             </p>
 
-            {/* Playback Audio */}
             {audioURL && (
               <div className="w-full mt-8 animate-fade-in-up">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 text-center">Last Recording</p>
@@ -263,7 +309,7 @@ export default function AudioDriller() {
         {/* RIGHT COLUMN: Teleprompter & Transcript */}
         <div className="lg:col-span-7 space-y-6 animate-fade-in-up delay-200">
           
-          {/* Teleprompter Focus Box */}
+          {/* UPDATED TELEPROMPTER: Karaoke Style */}
           {currentScript ? (
             <div className={`bg-slate-900 p-8 rounded-3xl border-2 transition-all duration-500 relative overflow-hidden ${isRecording ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]' : 'border-slate-800 shadow-xl hover:border-slate-700'}`}>
               {isRecording && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 animate-pulse"></div>}
@@ -271,9 +317,21 @@ export default function AudioDriller() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Teleprompter</p>
                 {isRecording && <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded font-bold uppercase tracking-wider flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500 animate-ping"></div> Live</span>}
               </div>
-              <p className={`text-2xl text-white font-medium leading-relaxed transition-opacity duration-300 ${isRecording ? 'opacity-100' : 'opacity-70'}`}>
-                {currentScript.script}
-              </p>
+              
+              <div className="flex flex-wrap gap-x-2 gap-y-3">
+                {scriptWordsRef.current.map((word, i) => (
+                  <span
+                    key={i}
+                    className={`text-2xl font-medium transition-all duration-300 ${
+                      i <= activeWordIndex 
+                        ? 'text-yellow-400 scale-[1.02] drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]' 
+                        : 'text-slate-400 opacity-60'
+                    }`}
+                  >
+                    {word}
+                  </span>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="bg-slate-100 p-8 rounded-3xl border-2 border-dashed border-slate-300 text-center flex flex-col items-center justify-center min-h-[200px]">
@@ -282,7 +340,7 @@ export default function AudioDriller() {
             </div>
           )}
 
-          {/* AI Feedback & Transcript Wrapper */}
+          {/* AI Feedback Wrapper */}
           {feedback ? (
             <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-200 animate-fade-in-up">
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
@@ -297,7 +355,6 @@ export default function AudioDriller() {
                 </button>
               </div>
 
-              {/* Metrics Row */}
               <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
                   <p className="text-[10px] text-slate-500 font-black uppercase tracking-wider mb-1">Words</p>
@@ -313,7 +370,6 @@ export default function AudioDriller() {
                 </div>
               </div>
 
-              {/* Detailed Feedback Cards */}
               <div className="space-y-3">
                 {feedback.feedback.map((f, i) => (
                   <div key={i} style={{ animationDelay: `${i * 100}ms` }} className={`p-4 rounded-2xl border-l-4 ${COLOR[f.color]} flex items-start gap-3 animate-fade-in-up`}>
@@ -326,7 +382,6 @@ export default function AudioDriller() {
                 ))}
               </div>
 
-              {/* Transcript Readout */}
               <div className="mt-8 bg-slate-50 p-6 rounded-2xl border border-slate-100">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">What we heard:</p>
                 <p className="text-sm text-slate-600 italic leading-relaxed">"{transcript}"</p>
@@ -334,7 +389,6 @@ export default function AudioDriller() {
 
             </div>
           ) : (
-            // Pre-recording state or live transcript view
             <div className="bg-white p-8 rounded-3xl shadow-lg border border-slate-200 min-h-[300px] flex flex-col transition-all duration-300">
               <h3 className="font-black text-blue-900 uppercase tracking-widest text-sm flex items-center gap-2 mb-6 pb-4 border-b border-slate-100">
                 <Activity size={18} className={isRecording ? 'text-red-500 animate-pulse' : 'text-blue-400'}/> Live Transcript

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '../../store/appStore'
-import { useProspects } from '../../hooks/useProspects'
 
 const STATUS_COLORS = {
   'Pitched': 'bg-blue-100 text-blue-800',
@@ -12,26 +11,55 @@ const STATUSES = ['Pitched', 'Appointment Set', 'Closed', 'Lost']
 const FILTERS = ['All', ...STATUSES]
 
 export default function CustomerTracker() {
-  // Restored the routing and store connections
-  const { user, setActiveSection, setCustomerForContract } = useAppStore()
-  const { prospects, loading, load, add, remove, updateStatus } = useProspects(user?.id)
-  const [filter, setFilter] = useState('All')
+  const { setActiveSection, setCustomerForContract } = useAppStore()
   
-  // Restored the email field
+  const [prospects, setProspects] = useState([])
+  const [filter, setFilter] = useState('All')
   const [form, setForm] = useState({ name: '', address: '', phone: '', email: '', status: 'Pitched', notes: '' })
   const [error, setError] = useState('')
 
-  useEffect(() => { load() }, [load])
+  // Load from LocalStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('stardustProspects')
+    if (saved) {
+      setProspects(JSON.parse(saved))
+    }
+  }, [])
 
-  async function handleAdd(e) {
-    e.preventDefault()
-    if (!form.name.trim()) { setError('Name is required.'); return }
-    const err = await add(form)
-    if (err) setError(err.message)
-    else { setForm({ name: '', address: '', phone: '', email: '', status: 'Pitched', notes: '' }); setError('') }
+  // Helper to sync state and local storage
+  const saveToLocal = (updatedProspects) => {
+    setProspects(updatedProspects)
+    localStorage.setItem('stardustProspects', JSON.stringify(updatedProspects))
   }
 
-  // Restored the jump to the Contract Generator
+  function handleAdd(e) {
+    e.preventDefault()
+    if (!form.name.trim()) { setError('Name is required.'); return }
+
+    const newProspect = {
+      ...form,
+      id: Date.now().toString(), // Generate a unique local ID
+      created_at: new Date().toISOString()
+    }
+
+    saveToLocal([newProspect, ...prospects])
+    setForm({ name: '', address: '', phone: '', email: '', status: 'Pitched', notes: '' })
+    setError('')
+  }
+
+  const remove = (id) => {
+    if (window.confirm("Are you sure you want to delete this prospect?")) {
+      saveToLocal(prospects.filter(p => p.id !== id))
+    }
+  }
+
+  const updateStatus = (id, newStatus) => {
+    const updated = prospects.map(p => 
+      p.id === id ? { ...p, status: newStatus } : p
+    )
+    saveToLocal(updated)
+  }
+
   const handleGenerateContract = (prospect) => {
     if (setCustomerForContract) {
       setCustomerForContract(prospect)
@@ -48,7 +76,7 @@ export default function CustomerTracker() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* ADD PROSPECT FORM - Slides in smoothly */}
+        {/* ADD PROSPECT FORM */}
         <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 animate-fade-in-up delay-100 transition-all duration-300 hover:shadow-xl sticky top-10 h-fit">
           <h3 className="font-black text-blue-900 mb-4 text-sm uppercase tracking-widest">➕ Add Prospect</h3>
           <form onSubmit={handleAdd} className="space-y-3">
@@ -88,10 +116,9 @@ export default function CustomerTracker() {
           </form>
         </div>
 
-        {/* PROSPECT LIST - Staggered entrance */}
+        {/* PROSPECT LIST */}
         <div className="lg:col-span-2 animate-fade-in-up delay-200">
           
-          {/* Animated Filter Buttons */}
           <div className="flex flex-wrap gap-2 mb-6">
             {FILTERS.map((f) => (
               <button
@@ -104,13 +131,7 @@ export default function CustomerTracker() {
             ))}
           </div>
 
-          {loading && (
-            <div className="flex justify-center mt-12 animate-pulse">
-              <p className="text-blue-900 font-bold bg-blue-50 px-4 py-2 rounded-full">Loading prospects...</p>
-            </div>
-          )}
-
-          {!loading && visible.length === 0 && (
+          {visible.length === 0 && (
             <div className="bg-slate-100 border border-slate-200 rounded-3xl p-12 text-center animate-fade-in-up">
               <i className="fas fa-users-slash text-4xl text-slate-300 mb-4"></i>
               <p className="text-slate-500 font-medium">
@@ -138,7 +159,6 @@ export default function CustomerTracker() {
                   <p className="text-[10px] text-slate-400 mt-2 font-medium uppercase tracking-wider">{new Date(p.created_at).toLocaleDateString('en-CA')}</p>
                 </div>
                 
-                {/* ACTION BUTTONS (Select Status, Contract, Delete) */}
                 <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0 mt-3 sm:mt-0">
                   <select
                     value={p.status}
@@ -149,7 +169,6 @@ export default function CustomerTracker() {
                   </select>
                   
                   <div className="flex items-center gap-2 mt-auto">
-                    {/* Restored Generate Contract Button with hover FX */}
                     <button 
                       onClick={() => handleGenerateContract(p)} 
                       className="bg-blue-50 text-blue-900 border border-blue-100 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-900 hover:text-white transition-colors shadow-sm flex items-center gap-1"

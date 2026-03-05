@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Copy, Save, Trash2, Bot, CheckCircle2 } from 'lucide-react'
+import { Copy, Save, Trash2, Bot, CheckCircle2, Mic, Edit3, List } from 'lucide-react'
 
 // EXPANDED OPTIONS
 const HOOKS = [
@@ -21,11 +21,18 @@ const CLOSES = [
 
 function getAdvice(hook, close) {
   const advice = []
-  if (hook.includes('neighbor')) advice.push({ color: 'green', text: "The Neighbor Hook builds 'Social Proof' instantly. This is our highest converting opener." })
-  if (hook.includes('Hydro One')) advice.push({ color: 'blue', text: "Using a common enemy (Hydro One) creates an instant bond with the homeowner." })
-  if (hook.includes('net-metering')) advice.push({ color: 'blue', text: "The Direct Question assumes they should already know about this, triggering FOMO." })
-  if (close.includes('not here to sell')) advice.push({ color: 'yellow', text: "Warning: Homeowners know you're selling. Pivot to 'I'm just the surveyor' to lower pressure." })
-  if (close.includes('grab that really quick')) advice.push({ color: 'green', text: "Strong direct close. Tell them what to do, don't ask for permission." })
+  const hLower = hook.toLowerCase()
+  const cLower = close.toLowerCase()
+
+  if (hLower.includes('neighbor')) advice.push({ color: 'green', text: "The Neighbor Hook builds 'Social Proof' instantly. This is our highest converting opener." })
+  if (hLower.includes('hydro one')) advice.push({ color: 'blue', text: "Using a common enemy (Hydro One) creates an instant bond with the homeowner." })
+  if (hLower.includes('net-metering')) advice.push({ color: 'blue', text: "The Direct Question assumes they should already know about this, triggering FOMO." })
+  if (cLower.includes('not here to sell')) advice.push({ color: 'yellow', text: "Warning: Homeowners know you're selling. Pivot to 'I'm just the surveyor' to lower pressure." })
+  if (cLower.includes('grab that')) advice.push({ color: 'green', text: "Strong direct close. Tell them what to do, don't ask for permission." })
+  
+  // Custom text feedback
+  if (hLower.includes('just looking') || cLower.includes('maybe')) advice.push({ color: 'yellow', text: "Careful using weak phrasing like 'maybe' or 'just looking'. Stand your ground." })
+
   return advice
 }
 
@@ -39,6 +46,11 @@ export default function ScriptBuilder() {
   const [hook, setHook] = useState('')
   const [trans, setTrans] = useState('')
   const [close, setClose] = useState('')
+  
+  const [isCustomHook, setIsCustomHook] = useState(false)
+  const [isCustomTrans, setIsCustomTrans] = useState(false)
+  const [isCustomClose, setIsCustomClose] = useState(false)
+
   const [savedScripts, setSavedScripts] = useState(() => JSON.parse(localStorage.getItem('solarSavedScripts') || '[]'))
   const [copied, setCopied] = useState(false)
 
@@ -49,9 +61,20 @@ export default function ScriptBuilder() {
     if (!script) { alert('Build a script first.'); return }
     const name = window.prompt('Name this script (e.g. "Neighbor Hook + Qualify Close"):')
     if (!name?.trim()) return
-    const updated = [{ name: name.trim(), script }, ...savedScripts] // Add to top of list
+    const updated = [{ name: name.trim(), script }, ...savedScripts]
     setSavedScripts(updated)
     localStorage.setItem('solarSavedScripts', JSON.stringify(updated))
+  }
+
+  function handlePracticeNow() {
+    if (!script) return
+    // Bypasses the manual naming by saving a temporary draft so AudioDriller can read it instantly
+    const practiceScript = { name: "🔥 Quick Practice (Unsaved)", script }
+    const updated = [practiceScript, ...savedScripts.filter(s => s.name !== "🔥 Quick Practice (Unsaved)")]
+    setSavedScripts(updated)
+    localStorage.setItem('solarSavedScripts', JSON.stringify(updated))
+    alert("Sent to Audio Driller! Switch over to your Driller tab to practice.")
+    // If you have a router, you could add something like: navigate('/driller') here.
   }
 
   function deleteScript(idx) {
@@ -67,6 +90,12 @@ export default function ScriptBuilder() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const sections = [
+    { label: '1. The Hook (The Opener)', value: hook, set: setHook, options: HOOKS, isCustom: isCustomHook, setIsCustom: setIsCustomHook },
+    { label: '2. The Transition (The "Why")', value: trans, set: setTrans, options: TRANSITIONS, isCustom: isCustomTrans, setIsCustom: setIsCustomTrans },
+    { label: '3. The Soft Close (The Appointment)', value: close, set: setClose, options: CLOSES, isCustom: isCustomClose, setIsCustom: setIsCustomClose },
+  ]
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto pb-12">
       
@@ -77,21 +106,35 @@ export default function ScriptBuilder() {
           <p className="text-slate-500 mb-8 italic">Mix and match hooks and closes to find your flow.</p>
 
           <div className="space-y-6">
-            {[
-              { label: '1. The Hook (The Opener)', value: hook, set: setHook, options: HOOKS },
-              { label: '2. The Transition (The "Why")', value: trans, set: setTrans, options: TRANSITIONS },
-              { label: '3. The Soft Close (The Appointment)', value: close, set: setClose, options: CLOSES },
-            ].map(({ label, value, set, options }) => (
+            {sections.map(({ label, value, set, options, isCustom, setIsCustom }) => (
               <div key={label} className="group">
-                <label className="block text-xs font-black text-blue-900 uppercase mb-2 group-hover:text-yellow-500 transition-colors">{label}</label>
-                <select
-                  value={value}
-                  onChange={(e) => set(e.target.value)}
-                  className="w-full p-4 border-2 border-slate-100 rounded-xl bg-slate-50 focus:border-yellow-400 focus:bg-white focus:shadow-md outline-none transition-all duration-300 cursor-pointer"
-                >
-                  <option value="">-- Choose your phrasing --</option>
-                  {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-black text-blue-900 uppercase group-hover:text-yellow-500 transition-colors">{label}</label>
+                  <button 
+                    onClick={() => setIsCustom(!isCustom)}
+                    className="text-[10px] uppercase font-bold text-blue-500 hover:text-blue-700 flex items-center gap-1 transition-colors bg-blue-50 px-2 py-1 rounded"
+                  >
+                    {isCustom ? <><List size={12}/> Use Presets</> : <><Edit3 size={12}/> Write Custom</>}
+                  </button>
+                </div>
+                
+                {isCustom ? (
+                  <textarea
+                    value={value}
+                    onChange={(e) => set(e.target.value)}
+                    placeholder="Type your custom phrasing here..."
+                    className="w-full p-4 border-2 border-slate-200 rounded-xl bg-slate-50 focus:border-yellow-400 focus:bg-white focus:shadow-md outline-none transition-all duration-300 min-h-[100px] resize-y text-slate-700"
+                  />
+                ) : (
+                  <select
+                    value={value}
+                    onChange={(e) => set(e.target.value)}
+                    className="w-full p-4 border-2 border-slate-100 rounded-xl bg-slate-50 focus:border-yellow-400 focus:bg-white focus:shadow-md outline-none transition-all duration-300 cursor-pointer text-slate-700"
+                  >
+                    <option value="">-- Choose your phrasing --</option>
+                    {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                )}
               </div>
             ))}
 
@@ -107,20 +150,27 @@ export default function ScriptBuilder() {
               </div>
               
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 mt-4">
+              <div className="flex flex-wrap justify-end gap-3 mt-4">
                 <button 
                   onClick={handleCopy} 
                   disabled={!script}
-                  className="px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl text-sm hover:bg-slate-50 hover:border-slate-300 hover:text-blue-900 transition-all duration-300 shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
+                  className="px-4 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl text-sm hover:bg-slate-50 hover:border-slate-300 hover:text-blue-900 transition-all duration-300 shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
                 >
-                  {copied ? <><CheckCircle2 size={16} className="text-green-500"/> Copied!</> : <><Copy size={16}/> Copy Script</>}
+                  {copied ? <><CheckCircle2 size={16} className="text-green-500"/> Copied!</> : <><Copy size={16}/> Copy</>}
                 </button>
                 <button 
                   onClick={saveScript} 
                   disabled={!script}
+                  className="px-4 py-2.5 bg-blue-50 text-blue-900 border-2 border-blue-100 font-bold rounded-xl text-sm hover:bg-blue-100 hover:border-blue-200 transition-all duration-300 shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
+                >
+                  <Save size={16} /> Save 
+                </button>
+                <button 
+                  onClick={handlePracticeNow} 
+                  disabled={!script}
                   className="px-5 py-2.5 bg-yellow-400 text-blue-900 font-black rounded-xl text-sm hover:bg-yellow-300 transition-all duration-300 shadow-sm hover:shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95 hover:-translate-y-0.5"
                 >
-                  <Save size={16} /> Save Script
+                  <Mic size={16} /> Practice Now
                 </button>
               </div>
             </div>
@@ -139,7 +189,9 @@ export default function ScriptBuilder() {
                       className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group transition-all duration-300 hover:shadow-md hover:border-blue-300 hover:bg-white animate-fade-in-up"
                     >
                       <div className="flex-1">
-                        <p className="text-sm font-black text-blue-900 mb-1">{s.name}</p>
+                        <p className="text-sm font-black text-blue-900 mb-1">
+                          {s.name} {s.name.includes("Quick Practice") && "⏱️"}
+                        </p>
                         <p className="text-xs text-slate-500 italic line-clamp-2">"{s.script}"</p>
                       </div>
                       <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">

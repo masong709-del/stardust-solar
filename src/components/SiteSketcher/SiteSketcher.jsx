@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import {
   Square, Home, Circle, Minus, ArrowRight, Type,
   Move, Eraser, Undo2, Redo2, Trash2, Download, ClipboardCheck,
-  Palette, BoxSelect
+  Palette, BoxSelect, Hexagon, Save, FolderOpen
 } from 'lucide-react'
 
 // Coordinate system remains 1000x500 regardless of screen size
@@ -12,6 +12,7 @@ const GRID = 20
 
 const TOOLS = [
   { id: 'rect',   label: 'Plane',  Icon: Square,     group: 'draw' },
+  { id: 'poly',   label: 'Custom', Icon: Hexagon,    group: 'draw' }, // NEW: Polygon Tool
   { id: 'dormer', label: 'Dormer', Icon: Home,       group: 'draw' },
   { id: 'circle', label: 'Vent',   Icon: Circle,     group: 'draw' },
   { id: 'line',   label: 'Line',   Icon: Minus,      group: 'draw' },
@@ -39,7 +40,6 @@ function snap(val) {
 
 function getMousePos(canvas, evt) {
   const rect = canvas.getBoundingClientRect()
-  // Map exact mouse position to our 1000x500 virtual coordinate space
   const scaleX = VIRTUAL_W / rect.width
   const scaleY = VIRTUAL_H / rect.height
   let cx = evt.clientX
@@ -52,14 +52,59 @@ function getMousePos(canvas, evt) {
 }
 
 // --- Drawing functions ---
+function getRgbaFromHex(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16) || 30
+  const g = parseInt(hex.slice(3, 5), 16) || 58
+  const b = parseInt(hex.slice(5, 7), 16) || 138
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 function drawRect(ctx, obj) {
+  const color = obj.color || '#1e3a8a'
   ctx.beginPath()
   ctx.rect(obj.x, obj.y, obj.w, obj.h)
-  ctx.strokeStyle = '#1e3a8a'
+  ctx.strokeStyle = color
   ctx.lineWidth = 3
-  ctx.fillStyle = 'rgba(30, 58, 138, 0.15)'
+  ctx.fillStyle = getRgbaFromHex(color, 0.15)
   ctx.fill()
   ctx.stroke()
+}
+
+// NEW: Polygon Drawing Logic
+function drawPoly(ctx, obj) {
+  if (!obj.points || obj.points.length === 0) return
+  const color = obj.color || '#1e3a8a'
+  
+  ctx.beginPath()
+  ctx.moveTo(obj.points[0].x, obj.points[0].y)
+  for (let i = 1; i < obj.points.length; i++) {
+    ctx.lineTo(obj.points[i].x, obj.points[i].y)
+  }
+  
+  if (!obj.closed && obj.currentPos) {
+    ctx.lineTo(obj.currentPos.x, obj.currentPos.y) // Draw active line to mouse
+  }
+  if (obj.closed) ctx.closePath()
+
+  ctx.strokeStyle = color
+  ctx.lineWidth = 3
+  
+  if (obj.closed) {
+    ctx.fillStyle = getRgbaFromHex(color, 0.15)
+    ctx.fill()
+  }
+  ctx.stroke()
+
+  // Draw vertices if currently building the shape
+  if (!obj.closed) {
+    obj.points.forEach(p => {
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, 5, 0, Math.PI * 2)
+      ctx.fillStyle = color
+      ctx.fill()
+      ctx.stroke()
+    })
+  }
 }
 
 function drawCircle(ctx, obj) {
@@ -73,7 +118,6 @@ function drawCircle(ctx, obj) {
   ctx.stroke()
 }
 
-// NEW: Proper aerial Dormer rendering
 function drawDormer(ctx, obj) {
   const rx = Math.min(obj.x, obj.x2)
   const ry = Math.min(obj.y, obj.y2)
@@ -82,7 +126,7 @@ function drawDormer(ctx, obj) {
 
   ctx.beginPath()
   ctx.rect(rx, ry, rw, rh)
-  ctx.strokeStyle = '#047857' // Green border
+  ctx.strokeStyle = '#047857'
   ctx.lineWidth = 3
   ctx.fillStyle = 'rgba(4, 120, 87, 0.15)'
   ctx.fill()
@@ -90,7 +134,6 @@ function drawDormer(ctx, obj) {
 
   ctx.beginPath()
   if (obj.dormerType === 'hip') {
-    // Hip: Ridge stops early and splits
     if (rh > rw) {
       const ridgeEnd = ry + rh * 0.33
       ctx.moveTo(rx + rw/2, ry + rh)
@@ -107,7 +150,6 @@ function drawDormer(ctx, obj) {
       ctx.lineTo(rx, ry + rh)
     }
   } else {
-    // Gable: Ridge splits the longest side completely
     if (rh > rw) {
       ctx.moveTo(rx + rw/2, ry)
       ctx.lineTo(rx + rw/2, ry + rh)
@@ -222,6 +264,16 @@ function hitTest(ctx, pos, obj) {
     const r = Math.sqrt(Math.pow(obj.x2 - obj.x, 2) + Math.pow(obj.y2 - obj.y, 2))
     return Math.sqrt(Math.pow(pos.x - obj.x, 2) + Math.pow(pos.y - obj.y, 2)) <= r
   }
+  if (obj.type === 'poly') {
+    let inside = false
+    for (let i = 0, j = obj.points.length - 1; i < obj.points.length; j = i++) {
+      const xi = obj.points[i].x, yi = obj.points[i].y
+      const xj = obj.points[j].x, yj = obj.points[j].y
+      const intersect = ((yi > pos.y) !== (yj > pos.y)) && (pos.x < (xj - xi) * (pos.y - yi) / (yj - yi) + xi)
+      if (intersect) inside = !inside
+    }
+    return inside
+  }
   if (obj.type === 'rect' || obj.type === 'dormer') {
     const rx = Math.min(obj.x, (obj.x2 !== undefined ? obj.x2 : obj.x + obj.w))
     const ry = Math.min(obj.y, (obj.y2 !== undefined ? obj.y2 : obj.y + obj.h))
@@ -250,6 +302,7 @@ export default function SiteSketcher() {
   // Sub-tool State
   const [dormerType, setDormerType] = useState('gable')
   const [textProps, setTextProps] = useState({ size: 20, color: '#b45309', bg: true })
+  const [roofColor, setRoofColor] = useState('#1e3a8a') // NEW: Roof color state
 
   // Mutable refs for canvas math
   const sketchObjectsRef = useRef([])
@@ -258,7 +311,7 @@ export default function SiteSketcher() {
   const isDrawingRef = useRef(false)
   const tempObjRef = useRef(null)
   const movingObjIndexRef = useRef(-1)
-  const dragOffsetRef = useRef({ x: 0, y: 0, x2: 0, y2: 0 })
+  const dragOffsetRef = useRef({ x: 0, y: 0, x2: 0, y2: 0, points: [] }) // Points added for poly drag
   
   // Sync state to refs for event listeners
   const activeToolRef = useRef(activeTool)
@@ -266,12 +319,38 @@ export default function SiteSketcher() {
   const compassAngleRef = useRef(compassAngle)
   const dormerTypeRef = useRef(dormerType)
   const textPropsRef = useRef(textProps)
+  const roofColorRef = useRef(roofColor)
 
   useEffect(() => { activeToolRef.current = activeTool }, [activeTool])
   useEffect(() => { pitchRef.current = pitch }, [pitch])
   useEffect(() => { compassAngleRef.current = compassAngle }, [compassAngle])
   useEffect(() => { dormerTypeRef.current = dormerType }, [dormerType])
   useEffect(() => { textPropsRef.current = textProps }, [textProps])
+  useEffect(() => { roofColorRef.current = roofColor }, [roofColor])
+
+  // Smart Checklist Evaluator
+  const evaluateSmartChecklist = useCallback(() => {
+    setChecklist(prev => {
+      const next = { ...prev }
+      const objs = sketchObjectsRef.current
+      
+      const faces = objs.filter(o => o.type === 'rect' || o.type === 'poly')
+      const arrows = objs.filter(o => o.type === 'arrow')
+      const texts = objs.filter(o => o.type === 'text')
+      const obstacles = objs.filter(o => o.type === 'circle' || o.type === 'dormer')
+
+      if (faces.length > 0) next['Roof faces drawn'] = true
+      // Smart Rule: Check direction only if we have at least 1 arrow per face drawn
+      if (faces.length > 0 && arrows.length >= faces.length) next['Direction added'] = true
+      
+      if (texts.length > 0) next['Lengths added'] = true
+      if (obstacles.length > 0) next['Obstacles added'] = true
+      if (pitchRef.current !== '') next['Pitch added'] = true
+      if (compassAngleRef.current !== 0) next['Orientation added'] = true
+
+      return next
+    })
+  }, [])
 
   // Initial DPI Scaling setup
   useEffect(() => {
@@ -280,10 +359,8 @@ export default function SiteSketcher() {
     const ctx = canvas.getContext('2d')
     const dpr = window.devicePixelRatio || 1
     
-    // Set actual render resolution
     canvas.width = VIRTUAL_W * dpr
     canvas.height = VIRTUAL_H * dpr
-    // Normalize coordinates back to 1000x500
     ctx.scale(dpr, dpr)
     
     redraw()
@@ -297,6 +374,7 @@ export default function SiteSketcher() {
 
     sketchObjectsRef.current.forEach(obj => {
       if (obj.type === 'rect') drawRect(ctx, obj)
+      if (obj.type === 'poly') drawPoly(ctx, obj)
       if (obj.type === 'circle') drawCircle(ctx, obj)
       if (obj.type === 'dormer') drawDormer(ctx, obj)
       if (obj.type === 'line') drawLine(ctx, obj)
@@ -307,6 +385,7 @@ export default function SiteSketcher() {
     const tmp = tempObjRef.current
     if (tmp) {
       if (tmp.type === 'rect') drawRect(ctx, tmp)
+      if (tmp.type === 'poly') drawPoly(ctx, tmp)
       if (tmp.type === 'circle') drawCircle(ctx, tmp)
       if (tmp.type === 'dormer') drawDormer(ctx, tmp)
       if (tmp.type === 'line') drawLine(ctx, tmp)
@@ -321,27 +400,58 @@ export default function SiteSketcher() {
     historyStackRef.current = historyStackRef.current.slice(0, currentStepRef.current + 1)
     historyStackRef.current.push(JSON.parse(JSON.stringify(sketchObjectsRef.current)))
     currentStepRef.current++
-  }, [])
+    evaluateSmartChecklist()
+  }, [evaluateSmartChecklist])
+
+  // Local Save / Load
+  const saveLocally = () => {
+    const data = {
+      objects: sketchObjectsRef.current,
+      pitch,
+      compassAngle,
+      checklist
+    }
+    localStorage.setItem('stardustSiteSketch', JSON.stringify(data))
+    alert('Sketch saved locally!')
+  }
+
+  const loadLocally = () => {
+    const data = localStorage.getItem('stardustSiteSketch')
+    if (data) {
+      const parsed = JSON.parse(data)
+      sketchObjectsRef.current = parsed.objects || []
+      setPitch(parsed.pitch || '')
+      setCompassAngle(parsed.compassAngle || 0)
+      setChecklist(parsed.checklist || Object.fromEntries(CHECKLIST.map(c => [c, false])))
+      saveState()
+      redraw()
+    } else {
+      alert('No saved sketch found.')
+    }
+  }
 
   const undo = useCallback(() => {
     if (currentStepRef.current > 0) {
       currentStepRef.current--
       sketchObjectsRef.current = JSON.parse(JSON.stringify(historyStackRef.current[currentStepRef.current]))
       redraw()
+      evaluateSmartChecklist()
     }
-  }, [redraw])
+  }, [redraw, evaluateSmartChecklist])
 
   const redo = useCallback(() => {
     if (currentStepRef.current < historyStackRef.current.length - 1) {
       currentStepRef.current++
       sketchObjectsRef.current = JSON.parse(JSON.stringify(historyStackRef.current[currentStepRef.current]))
       redraw()
+      evaluateSmartChecklist()
     }
-  }, [redraw])
+  }, [redraw, evaluateSmartChecklist])
 
   const clearSketch = useCallback(() => {
     if (window.confirm('Clear the entire blueprint?')) {
       sketchObjectsRef.current = []
+      tempObjRef.current = null
       saveState()
       redraw()
     }
@@ -357,7 +467,15 @@ export default function SiteSketcher() {
     a.click()
   }, [])
 
-  useEffect(() => { redraw() }, [compassAngle, pitch, redraw])
+  // Checkbox toggle logic
+  const toggleCheck = (item) => {
+    setChecklist(prev => ({ ...prev, [item]: !prev[item] }))
+  }
+
+  useEffect(() => { 
+    redraw() 
+    evaluateSmartChecklist()
+  }, [compassAngle, pitch, redraw, evaluateSmartChecklist])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -400,18 +518,48 @@ export default function SiteSketcher() {
         return
       }
 
+      // Special handling for Polygon
+      if (tool === 'poly') {
+        if (!tempObjRef.current || tempObjRef.current.type !== 'poly') {
+          // Start new poly
+          tempObjRef.current = { type: 'poly', points: [{ x: sx, y: sy }], color: roofColorRef.current, closed: false }
+        } else {
+          // Check if close to start point to close the loop
+          const startPt = tempObjRef.current.points[0]
+          const dist = Math.sqrt(Math.pow(startPt.x - sx, 2) + Math.pow(startPt.y - sy, 2))
+          
+          if (dist < 20 && tempObjRef.current.points.length > 2) {
+            tempObjRef.current.closed = true
+            sketchObjectsRef.current.push(tempObjRef.current)
+            tempObjRef.current = null
+            saveState()
+          } else {
+            // Add point
+            tempObjRef.current.points.push({ x: sx, y: sy })
+          }
+        }
+        redraw()
+        return
+      }
+
       isDrawingRef.current = true
 
       if (tool === 'move') {
         movingObjIndexRef.current = -1
         for (let i = sketchObjectsRef.current.length - 1; i >= 0; i--) {
           if (hitTest(ctx, pos, sketchObjectsRef.current[i])) {
+            const obj = sketchObjectsRef.current[i]
             movingObjIndexRef.current = i
-            dragOffsetRef.current.x = sx - sketchObjectsRef.current[i].x
-            dragOffsetRef.current.y = sy - sketchObjectsRef.current[i].y
-            if (sketchObjectsRef.current[i].x2 !== undefined) {
-              dragOffsetRef.current.x2 = sx - sketchObjectsRef.current[i].x2
-              dragOffsetRef.current.y2 = sy - sketchObjectsRef.current[i].y2
+            
+            if (obj.type === 'poly') {
+              dragOffsetRef.current.points = obj.points.map(p => ({ dx: sx - p.x, dy: sy - p.y }))
+            } else {
+              dragOffsetRef.current.x = sx - obj.x
+              dragOffsetRef.current.y = sy - obj.y
+              if (obj.x2 !== undefined) {
+                dragOffsetRef.current.x2 = sx - obj.x2
+                dragOffsetRef.current.y2 = sy - obj.y2
+              }
             }
             break
           }
@@ -419,34 +567,47 @@ export default function SiteSketcher() {
       } else {
         tempObjRef.current = { 
           type: tool, x: sx, y: sy, x2: sx, y2: sy, w: 0, h: 0,
-          dormerType: dormerTypeRef.current 
+          dormerType: dormerTypeRef.current,
+          color: roofColorRef.current 
         }
       }
     }
 
     function moveAction(e) {
+      const pos = getMousePos(canvas, e)
+      const tool = activeToolRef.current
+      const cx = tool === 'circle' || tool === 'poly' ? pos.x : snap(pos.x)
+      const cy = tool === 'circle' || tool === 'poly' ? pos.y : snap(pos.y)
+
+      if (tool === 'poly' && tempObjRef.current && !tempObjRef.current.closed) {
+        tempObjRef.current.currentPos = { x: cx, y: cy }
+        redraw()
+        return
+      }
+
       if (!isDrawingRef.current) return
       e.preventDefault()
-      const pos = getMousePos(canvas, e)
-      
-      // FIX: Circles (vents) radius grows smoothly without snapping
-      const tool = activeToolRef.current
-      const cx = tool === 'circle' ? pos.x : snap(pos.x)
-      const cy = tool === 'circle' ? pos.y : snap(pos.y)
 
       if (tool === 'move' && movingObjIndexRef.current > -1) {
         const obj = sketchObjectsRef.current[movingObjIndexRef.current]
-        obj.x = cx - dragOffsetRef.current.x
-        obj.y = cy - dragOffsetRef.current.y
-        if (obj.x2 !== undefined) {
-          obj.x2 = cx - dragOffsetRef.current.x2
-          obj.y2 = cy - dragOffsetRef.current.y2
+        if (obj.type === 'poly') {
+          obj.points = obj.points.map((p, i) => ({
+            x: cx - dragOffsetRef.current.points[i].dx,
+            y: cy - dragOffsetRef.current.points[i].dy
+          }))
+        } else {
+          obj.x = cx - dragOffsetRef.current.x
+          obj.y = cy - dragOffsetRef.current.y
+          if (obj.x2 !== undefined) {
+            obj.x2 = cx - dragOffsetRef.current.x2
+            obj.y2 = cy - dragOffsetRef.current.y2
+          }
         }
       } else if (tempObjRef.current) {
         if (tool === 'rect') {
           tempObjRef.current.w = cx - tempObjRef.current.x
           tempObjRef.current.h = cy - tempObjRef.current.y
-        } else {
+        } else if (tool !== 'poly') {
           tempObjRef.current.x2 = cx
           tempObjRef.current.y2 = cy
         }
@@ -455,6 +616,8 @@ export default function SiteSketcher() {
     }
 
     function endAction() {
+      if (activeToolRef.current === 'poly') return // Polys are closed by clicking the start point
+
       let stateChanged = false
       const tool = activeToolRef.current
 
@@ -517,6 +680,14 @@ export default function SiteSketcher() {
           <h2 className="text-4xl font-black text-blue-900 mb-2 animate-fade-in-up">Site Sketcher</h2>
           <p className="text-slate-500 italic animate-fade-in-up delay-100">Draft roof planes, vents, and dimensions for the design team.</p>
         </div>
+        <div className="flex gap-2">
+          <button onClick={saveLocally} className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 hover:bg-slate-50 flex items-center gap-2 shadow-sm">
+            <Save size={16} /> Save Sketch
+          </button>
+          <button onClick={loadLocally} className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 hover:bg-slate-50 flex items-center gap-2 shadow-sm">
+            <FolderOpen size={16} /> Load
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 animate-fade-in-up delay-200">
@@ -544,10 +715,7 @@ export default function SiteSketcher() {
           <div className="flex gap-2 flex-wrap items-center">
             <select
               value={pitch}
-              onChange={e => {
-                setPitch(e.target.value)
-                if (e.target.value) setChecklist(prev => ({ ...prev, 'Pitch added': true }))
-              }}
+              onChange={e => setPitch(e.target.value)}
               className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 bg-white outline-none focus:border-yellow-400 transition-colors cursor-pointer hover:bg-slate-50"
               title="Roof Pitch"
             >
@@ -555,22 +723,38 @@ export default function SiteSketcher() {
                 <option key={p} value={p}>{p || 'Pitch…'}</option>
               ))}
             </select>
-            <button onClick={undo} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 transform active:scale-95 hover:-translate-y-1 hover:shadow-md hover:bg-slate-100">
+            <button onClick={undo} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-md hover:bg-slate-100">
               <Undo2 size={14} />
             </button>
-            <button onClick={redo} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 transform active:scale-95 hover:-translate-y-1 hover:shadow-md hover:bg-slate-100">
+            <button onClick={redo} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-md hover:bg-slate-100">
               <Redo2 size={14} />
             </button>
-            <button onClick={clearSketch} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 transform active:scale-95 hover:-translate-y-1 hover:shadow-md hover:bg-red-100 hover:border-red-300">
+            <button onClick={clearSketch} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-md hover:bg-red-100">
               <Trash2 size={14} />
             </button>
-            <button onClick={exportPNG} className="bg-blue-900 border border-blue-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 transform active:scale-95 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/30 hover:bg-blue-800 flex items-center gap-1">
+            <button onClick={exportPNG} className="bg-blue-900 border border-blue-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/30 hover:bg-blue-800 flex items-center gap-1">
               <Download size={14} /> PNG
             </button>
           </div>
         </div>
 
         {/* Dynamic Sub-Toolbars */}
+        {(activeTool === 'rect' || activeTool === 'poly') && (
+          <div className="flex items-center gap-3 mb-4 bg-blue-50 text-blue-900 p-2 px-4 rounded-lg border border-blue-200 animate-fade-in-up">
+            <Palette size={16} />
+            <span className="text-xs font-bold uppercase tracking-wider">Roof Color:</span>
+            <input 
+              type="color" 
+              value={roofColor} 
+              onChange={e => setRoofColor(e.target.value)} 
+              className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0" 
+            />
+            {activeTool === 'poly' && (
+              <span className="text-xs text-blue-700 italic ml-auto hidden sm:block">Click to add points. Click your starting point to close.</span>
+            )}
+          </div>
+        )}
+
         {activeTool === 'dormer' && (
           <div className="flex items-center gap-3 mb-4 bg-green-50 text-green-900 p-2 px-4 rounded-lg border border-green-200 animate-fade-in-up">
             <Home size={16} />
@@ -634,7 +818,7 @@ export default function SiteSketcher() {
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {CHECKLIST.map(item => (
-              <label key={item} className="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer transition-all duration-300 hover:translate-x-1 hover:text-blue-900 group">
+              <label key={item} className={`flex items-center gap-2 text-sm font-medium cursor-pointer transition-all duration-300 hover:translate-x-1 group ${checklist[item] ? 'text-green-700' : 'text-slate-600 hover:text-blue-900'}`}>
                 <input
                   type="checkbox"
                   checked={checklist[item]}
