@@ -3,15 +3,14 @@ import { useAppStore } from '../../store/appStore'
 import { useProspects } from '../../hooks/useProspects'
 
 export default function ContractGenerator() {
-  // Pull data from global store, including the current user for DB fetching
   const { user, customerForContract, estimateForContract } = useAppStore()
   
-  // Fetch prospects from your custom hook
+  // Fetch prospects from the CRM
   const { prospects, load } = useProspects(user?.id)
 
-  // Customer Form State
+  // Customer Form State (Now populated exclusively via dropdown)
   const [customer, setCustomer] = useState({
-    name: '', address: '', city: '', postal: '', phone: '', email: ''
+    id: '', name: '', address: '', city: '', postal: '', phone: '', email: ''
   })
 
   // Estimate State
@@ -19,45 +18,36 @@ export default function ContractGenerator() {
     kw: 0, mountType: "Roof", sysType: "Grid-Tied", panel: "TBD", inverter: "TBD", batteryKwh: 0, subTotal: 0, discount: 0
   })
 
-  // Sidebar Search States
+  // Sidebar Estimate Search States
   const [savedEstimatesList, setSavedEstimatesList] = useState([])
   const [estimateSearchQuery, setEstimateSearchQuery] = useState('')
   const [estimateSortOrder, setEstimateSortOrder] = useState('newest')
-  
-  const [prospectSearchQuery, setProspectSearchQuery] = useState('')
 
   useEffect(() => {
-    // Load prospects from database
     load()
-
-    // Load estimates from local storage
     setSavedEstimatesList(JSON.parse(localStorage.getItem('stardustEstimates') || '[]'))
 
     // Auto-fill if routed directly from the Tracker
     if (customerForContract) {
-      setCustomer({
-        name: customerForContract.name || '',
-        address: customerForContract.address || '',
-        city: customerForContract.city || '',
-        postal: customerForContract.postal || '',
-        phone: customerForContract.phone || '',
-        email: customerForContract.email || ''
-      })
+      setCustomer(customerForContract)
     }
   }, [customerForContract, load])
 
-  // Click Handlers for Sidebar Lists
+  // Handlers for loading data into the contract
   const handleSelectEstimate = (est) => setEstimate(est)
   
-  const handleSelectProspect = (p) => {
-    setCustomer({
-      name: p.name || '',
-      address: p.address || '',
-      city: p.city || '', // Manually filled if not in CRM
-      postal: p.postal || '', // Manually filled if not in CRM
-      phone: p.phone || '',
-      email: p.email || ''
-    })
+  const handleSelectProspectChange = (e) => {
+    const selectedId = e.target.value
+    if (!selectedId) {
+      setCustomer({ id: '', name: '', address: '', city: '', postal: '', phone: '', email: '' })
+      return
+    }
+    
+    // Find the prospect. (Using == to handle string/number mismatches safely)
+    const selectedProspect = prospects.find(p => p.id == selectedId)
+    if (selectedProspect) {
+      setCustomer(selectedProspect)
+    }
   }
 
   // Formatting & Math
@@ -75,7 +65,7 @@ export default function ContractGenerator() {
 
   const handlePrint = () => window.print()
 
-  // Filter/Sort Logic
+  // Filter/Sort Logic for Estimates
   const filteredAndSortedEstimates = savedEstimatesList
     .filter(est => est.name.toLowerCase().includes(estimateSearchQuery.toLowerCase()))
     .sort((a, b) => {
@@ -87,36 +77,46 @@ export default function ContractGenerator() {
       return 0
     })
 
-  const filteredProspects = prospects.filter(p => 
-    p.name.toLowerCase().includes(prospectSearchQuery.toLowerCase()) || 
-    (p.address && p.address.toLowerCase().includes(prospectSearchQuery.toLowerCase()))
-  )
+  const isContractReady = customer.name && estimate.subTotal > 0
 
   return (
-    <section className="max-w-7xl mx-auto p-4 md:p-8">
-      <div className="flex justify-between items-end mb-8 print:hidden animate-fade-in-up">
+    // PRINTER FIX: Remove max-widths and padding on print
+    <section className="max-w-7xl mx-auto p-4 md:p-8 print:p-0 print:m-0 print:max-w-none">
+      <div className="flex justify-between items-start md:items-end mb-8 print:hidden animate-fade-in-up flex-col md:flex-row gap-4">
         <div>
-          <h2 className="text-4xl font-black text-blue-900 mb-2">Contract Generator</h2>
-          {estimate.subTotal === 0 && (
-             <p className="text-orange-500 font-bold text-sm bg-orange-100 px-3 py-1 rounded inline-block animate-breathe">
-               ⚠️ Warning: No active estimate loaded. Select one below to populate math.
-             </p>
-          )}
+          <h2 className="text-4xl font-black text-blue-900 mb-4">Contract Generator</h2>
+          <div className="flex flex-col gap-2">
+            {estimate.subTotal === 0 && (
+               <p className="text-orange-500 font-bold text-sm bg-orange-100 px-3 py-1.5 rounded-lg inline-block animate-breathe w-fit shadow-sm border border-orange-200">
+                 ⚠️ Warning: No active estimate loaded.
+               </p>
+            )}
+            {!customer.name && (
+               <p className="text-red-500 font-bold text-sm bg-red-100 px-3 py-1.5 rounded-lg inline-block animate-breathe w-fit shadow-sm border border-red-200">
+                 ⚠️ Warning: No customer selected.
+               </p>
+            )}
+          </div>
         </div>
-        <button onClick={handlePrint} className="bg-blue-900 text-white px-6 py-3 rounded-xl font-black shadow-lg hover:bg-blue-800 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-          <i className="fas fa-print mr-2"></i> Print / Save PDF
+        <button 
+          onClick={handlePrint} 
+          disabled={!isContractReady}
+          className="bg-blue-900 text-white px-6 py-4 rounded-xl font-black shadow-lg hover:bg-blue-800 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center gap-2"
+        >
+          <i className="fas fa-print"></i> Print / Save PDF
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* PRINTER FIX: Turn the Grid into a standard vertical block for printing */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 print:block print:w-full">
         
         {/* Left Column: Form Controls & Searchable Lists */}
         <div className="lg:col-span-4 space-y-6 print:hidden">
           
           {/* SEARCHABLE ESTIMATES SIDEBAR */}
           <div className="bg-slate-900 p-6 rounded-3xl shadow-lg border border-slate-800 relative border-t-4 border-yellow-400 animate-fade-in-up">
-            <h3 className="font-black text-yellow-400 mb-4 text-sm uppercase tracking-widest">
-              <i className="fas fa-file-invoice-dollar mr-2"></i>1. Attach Estimate
+            <h3 className="font-black text-yellow-400 mb-4 text-sm uppercase tracking-widest flex items-center">
+              <i className="fas fa-file-invoice-dollar mr-2 text-lg"></i>1. Attach Estimate
             </h3>
             
             <div className="space-y-3 mb-4">
@@ -125,12 +125,12 @@ export default function ContractGenerator() {
                 placeholder="Search estimate names..." 
                 value={estimateSearchQuery}
                 onChange={(e) => setEstimateSearchQuery(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white font-medium outline-none focus:border-yellow-400 transition"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white font-medium outline-none focus:border-yellow-400 transition shadow-inner"
               />
               <select 
                 value={estimateSortOrder} 
                 onChange={(e) => setEstimateSortOrder(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 font-bold outline-none focus:border-yellow-400 transition cursor-pointer"
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-300 font-bold outline-none focus:border-yellow-400 transition cursor-pointer shadow-inner"
               >
                 <option value="newest">Sort: Newest First</option>
                 <option value="oldest">Sort: Oldest First</option>
@@ -140,103 +140,70 @@ export default function ContractGenerator() {
               </select>
             </div>
 
-            <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+            <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
               {filteredAndSortedEstimates.length === 0 ? (
-                 <p className="text-xs text-slate-500 italic text-center py-4">No matching estimates found.</p>
+                 <p className="text-xs text-slate-500 italic text-center py-6">No matching estimates found.</p>
               ) : (
                 filteredAndSortedEstimates.map(est => (
                   <button 
                     key={est.id}
                     onClick={() => handleSelectEstimate(est)}
-                    className="w-full text-left bg-slate-800 border border-slate-700 p-3 rounded-xl hover:border-yellow-400 hover:bg-slate-750 transition group flex flex-col"
+                    className="w-full text-left bg-slate-800 border border-slate-700 p-4 rounded-xl hover:border-yellow-400 hover:bg-slate-750 transition-all duration-200 group flex flex-col shadow-sm"
                   >
-                    <span className="font-bold text-white text-sm group-hover:text-yellow-400 transition truncate w-full">{est.name}</span>
-                    <span className="text-xs text-slate-400">{est.date} • {est.kw}kW</span>
-                    <span className="text-green-400 font-black mt-1">{fmt.format(est.subTotal)}</span>
+                    <span className="font-bold text-white text-sm group-hover:text-yellow-400 transition-colors truncate w-full">{est.name}</span>
+                    <span className="text-xs text-slate-400 mt-1">{est.date} • {est.kw}kW</span>
+                    <span className="text-green-400 font-black mt-2 text-lg">{fmt.format(est.subTotal)}</span>
                   </button>
                 ))
               )}
             </div>
           </div>
 
-          {/* NEW: SEARCHABLE PROSPECT SIDEBAR */}
-          <div className="bg-slate-900 p-6 rounded-3xl shadow-lg border border-slate-800 relative border-t-4 border-blue-500 animate-fade-in-up delay-100">
-            <h3 className="font-black text-blue-400 mb-4 text-sm uppercase tracking-widest">
-              <i className="fas fa-users mr-2"></i>2. Attach Prospect
-            </h3>
-            
-            <div className="mb-4">
-              <input 
-                type="text" 
-                placeholder="Search names or address..." 
-                value={prospectSearchQuery}
-                onChange={(e) => setProspectSearchQuery(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white font-medium outline-none focus:border-blue-400 transition"
-              />
-            </div>
-
-            <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-              {filteredProspects.length === 0 ? (
-                 <p className="text-xs text-slate-500 italic text-center py-4">No matching prospects found.</p>
-              ) : (
-                filteredProspects.map(p => (
-                  <button 
-                    key={p.id}
-                    onClick={() => handleSelectProspect(p)}
-                    className="w-full text-left bg-slate-800 border border-slate-700 p-3 rounded-xl hover:border-blue-400 hover:bg-slate-750 transition group flex flex-col"
-                  >
-                    <span className="font-bold text-white text-sm group-hover:text-blue-400 transition truncate w-full">{p.name}</span>
-                    <span className="text-xs text-slate-400 truncate w-full">{p.address || 'No address logged'}</span>
-                    <span className="text-[10px] text-slate-500 mt-1 uppercase font-bold">{p.status}</span>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* MANUAL CUSTOMER DETAILS FORM */}
-          <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 transition-all duration-300 hover:shadow-xl animate-fade-in-up delay-200">
-            <h3 className="font-black text-xl text-blue-900 mb-2">
-              <i className="fas fa-address-book mr-2"></i>3. Customer Details
+          {/* MANDATORY CUSTOMER DROPDOWN */}
+          <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 transition-all duration-300 hover:shadow-xl animate-fade-in-up delay-100">
+            <h3 className="font-black text-xl text-blue-900 mb-2 flex items-center">
+              <i className="fas fa-address-book mr-2 text-blue-500"></i>2. Select Customer
             </h3>
             <p className="text-xs text-slate-500 mb-6 border-b border-slate-100 pb-4">
-              Auto-filled from prospect selection, or type manually to override.
+              Select a prospect from the CRM database. To add or edit a client, return to the Customer Tracker.
             </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs uppercase font-black text-slate-500 mb-2">Full Name</label>
-                <input type="text" value={customer.name} onChange={(e) => setCustomer({...customer, name: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-yellow-400 transition" />
+            
+            <select 
+              value={customer.id || ''}
+              onChange={handleSelectProspectChange}
+              className="w-full p-4 border-2 border-slate-200 rounded-xl bg-slate-50 focus:border-blue-500 focus:bg-white focus:shadow-md outline-none transition-all duration-300 cursor-pointer font-black text-blue-900 shadow-sm"
+            >
+              <option value="">-- Choose a Customer --</option>
+              {prospects.map(p => (
+                <option key={p.id} value={p.id}>{p.name} {p.address ? `- ${p.address}` : ''}</option>
+              ))}
+            </select>
+
+            {/* Read-Only Verification Card */}
+            {customer.name && (
+              <div className="mt-6 bg-gradient-to-br from-blue-50 to-white border border-blue-100 p-5 rounded-2xl animate-fade-in-up shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-2 flex items-center gap-1">
+                  <i className="fas fa-check-circle"></i> Loaded Client Data
+                </p>
+                <p className="font-black text-blue-900 text-lg">{customer.name}</p>
+                {customer.address && <p className="text-sm text-slate-600 mt-2 font-medium">📍 {customer.address}</p>}
+                {(customer.phone || customer.email) && (
+                  <p className="text-sm text-slate-600 mt-1 font-medium">
+                    {customer.phone && `📞 ${customer.phone}`} 
+                    {customer.phone && customer.email && ' | '}
+                    {customer.email && `✉️ ${customer.email}`}
+                  </p>
+                )}
               </div>
-              <div>
-                <label className="block text-xs uppercase font-black text-slate-500 mb-2">Street Address</label>
-                <input type="text" value={customer.address} onChange={(e) => setCustomer({...customer, address: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-yellow-400 transition" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs uppercase font-black text-slate-500 mb-2">City/Prov</label>
-                  <input type="text" value={customer.city} onChange={(e) => setCustomer({...customer, city: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-yellow-400 transition" />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase font-black text-slate-500 mb-2">Postal</label>
-                  <input type="text" value={customer.postal} onChange={(e) => setCustomer({...customer, postal: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-yellow-400 transition" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs uppercase font-black text-slate-500 mb-2">Email</label>
-                <input type="email" value={customer.email} onChange={(e) => setCustomer({...customer, email: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-yellow-400 transition" />
-              </div>
-              <div>
-                <label className="block text-xs uppercase font-black text-slate-500 mb-2">Phone</label>
-                <input type="tel" value={customer.phone} onChange={(e) => setCustomer({...customer, phone: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-blue-900 font-bold outline-none focus:border-yellow-400 transition" />
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Right Column: Live Document Preview - Slides in smoothly */}
-        <div className="lg:col-span-8 bg-white p-12 rounded-sm shadow-2xl border border-slate-200 text-slate-800 font-serif text-sm leading-relaxed print:p-0 print:shadow-none print:border-none print:text-black animate-fade-in-up delay-100 transition-all duration-300 hover:shadow-blue-900/10">
+        {/* Right Column: Live Document Preview */}
+        {/* PRINTER FIX: Force full width, remove shadows/borders/backgrounds */}
+        <div className="lg:col-span-8 bg-white p-8 md:p-12 rounded-sm shadow-2xl border border-slate-200 text-slate-800 font-serif text-sm leading-relaxed print:w-full print:m-0 print:p-0 print:shadow-none print:border-none print:text-black print:block animate-fade-in-up delay-200">
           
-          <div className="flex justify-between items-start mb-8 border-b-2 border-slate-800 pb-6">
+          <div className="flex justify-between items-start mb-8 border-b-2 border-slate-800 pb-6 print:break-inside-avoid">
             <div>
               <h1 className="text-2xl font-black uppercase tracking-widest mb-4">Solar Installation Agreement</h1>
               <div className="space-y-1 font-medium transition-all duration-300">
@@ -258,40 +225,39 @@ export default function ContractGenerator() {
             </div>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-6 print:break-inside-avoid">
             <h2 className="text-lg font-bold border-b border-slate-300 mb-3 uppercase tracking-wider">Scope of Work</h2>
             <div className="space-y-2">
               <p><strong>Your Solar PV System:</strong> We will determine and confirm the optimum location for your solar panels on the property.</p>
-              <p className="transition-all duration-300"><strong>Solar Panel System:</strong> <span className="bg-yellow-100 px-1 rounded">{estimate.mountType} Mounted {estimate.kw}kW Solar(PV) {estimate.sysType} System</span> {estimate.batteryKwh > 0 ? `with ${estimate.batteryKwh.toFixed(1)} kWh storage capacity.` : ''}</p>
-              <p className="transition-all duration-300"><strong>Solar Panel Details:</strong> <span className="bg-yellow-100 px-1 rounded">{estimate.panel} & {estimate.inverter}</span> (or equivalent, solar panel power rating may vary by up to 2.5%).</p>
+              <p><strong>Solar Panel System:</strong> <span className="bg-yellow-100 print:bg-transparent px-1 rounded">{estimate.mountType} Mounted {estimate.kw}kW Solar(PV) {estimate.sysType} System</span> {estimate.batteryKwh > 0 ? `with ${estimate.batteryKwh.toFixed(1)} kWh storage capacity.` : ''}</p>
+              <p><strong>Solar Panel Details:</strong> <span className="bg-yellow-100 print:bg-transparent px-1 rounded">{estimate.panel} & {estimate.inverter}</span> (or equivalent, solar panel power rating may vary by up to 2.5%).</p>
               <p>Our systems include web monitoring devices and setup so that the system owner can see how much the system is generating over time and at any given time.</p>
               <p>Our systems include equipment, wiring, and devices necessary to make a functioning system complete.</p>
               <p>Our systems include planning, design, permitting, installation, labor, system connection, set-up, and testing.</p>
             </div>
           </div>
 
-          <div className="mb-6 space-y-4 text-[13px] text-justify">
-            <h2 className="text-lg font-bold border-b border-slate-300 mb-3 uppercase tracking-wider">Notes</h2>
-            <p><strong>Confidentiality:</strong> This Confidential Proposal has been proposed exclusively for you. This remains the property of Stardust Solar until accepted and may not be given to or shown to any other person or company.</p>
-            <p><strong>Warranty:</strong> All Stardust Solar crews working on your roof and your electrical system are certified. We are so confident in our work that we offer you a 5-Year Workmanship Warranty on our labor, in addition to the manufacturer’s warranties on the equipment installed. As well, we offer a 5-Year Roof Warranty along with your solar and workmanship warranties, pending a roofing inspection. This covers you for any leaks as a result of our work on your solar roof faces.</p>
-            <p><strong>Insurance:</strong> Our company carries a minimum of $5 million in commercial liability and ensures workers are registered in accordance with local occupational health and safety and workers compensation requirements. It is the responsibility of the customer to ensure that they carry comprehensive liability cover in excess of $5 million if they so require.</p>
-            <p><strong>Debris Removal:</strong> It is our goal to remove all debris and leave premises in clean condition without damage to the surrounding property, and to restore any landscaping to its original condition.</p>
-            <p><strong>Access to Property:</strong> This agreement is based on the assumption that we, along with necessary associates and inspectors, will have free access to the property, electrical panel, and wiring routes during regular business hours. Notice and request for access will be given and confirmed by the customer.</p>
-            <p><strong>Incentive and Financing:</strong> We will provide support to help customers navigate government incentives programs and financing options. Approvals and costs of government incentive and financing approvals are the responsibility of the customer, and any financing terms will be set out in a separate financing agreement between the customer and finance company.</p>
-            <p><strong>Project Timing:</strong> Due to the uncertainty of weather conditions, material supplies, and shipping delays it is not possible to give an exact start date or completion date, however our projects are as a rule completed on a ‘first come first serve basis’, and we will always do our best to get to your project in a timely manner. However, due to such variables, any start date given whether verbal or written are to be considered tentative and cannot be guaranteed.</p>
-            <p><strong>Work Quality:</strong> Our work will be completed in a quality manner and in compliance with all building and electrical codes, all other applicable laws, and all applicable utility requirements, including appropriate utility interconnection obligations.</p>
-            <p><strong>Change Orders:</strong> Due to possible unforeseen circumstances such as physical obstacles to solar panel locations, problems with the existing electrical system, or late progress payments causing delays and material price changes, we may need to make changes to the scope of work or adjustments to the price or payment structure. All change orders will be provided to customers for approval before proceeding.</p>
-            <p><strong>Payment Schedule:</strong> We require progress payments at certain stages of the project in order to proceed. See Pricing Summary for progress payments terms and amounts. Failure to make progress payments or approve financing payments may result in stop-work, stop-progress orders, project delays, and/or additional costs.</p>
-            <p><strong>Cancellation:</strong> The customer may cancel the installation during any stage of the project. If the customer cancels prior to the installation start-date, any deposits and progress payments are fully refundable, less any permit fees or other expenses incurred, and a 25% restocking fee on any solar equipment & materials purchased. If the customer cancels after the physical installation has begun, no refunds will be available. Security deposits for financing customers will be fully refundable on completion of the job, less any remaining balance owing.</p>
+          <div className="mb-6 space-y-4 text-[13px] text-justify print:text-[12px]">
+            <h2 className="text-lg font-bold border-b border-slate-300 mb-3 uppercase tracking-wider print:break-inside-avoid">Notes</h2>
+            <p className="print:break-inside-avoid"><strong>Confidentiality:</strong> This Confidential Proposal has been proposed exclusively for you. This remains the property of Stardust Solar until accepted and may not be given to or shown to any other person or company.</p>
+            <p className="print:break-inside-avoid"><strong>Warranty:</strong> All Stardust Solar crews working on your roof and your electrical system are certified. We are so confident in our work that we offer you a 5-Year Workmanship Warranty on our labor, in addition to the manufacturer’s warranties on the equipment installed. As well, we offer a 5-Year Roof Warranty along with your solar and workmanship warranties, pending a roofing inspection. This covers you for any leaks as a result of our work on your solar roof faces.</p>
+            <p className="print:break-inside-avoid"><strong>Insurance:</strong> Our company carries a minimum of $5 million in commercial liability and ensures workers are registered in accordance with local occupational health and safety and workers compensation requirements. It is the responsibility of the customer to ensure that they carry comprehensive liability cover in excess of $5 million if they so require.</p>
+            <p className="print:break-inside-avoid"><strong>Debris Removal:</strong> It is our goal to remove all debris and leave premises in clean condition without damage to the surrounding property, and to restore any landscaping to its original condition.</p>
+            <p className="print:break-inside-avoid"><strong>Access to Property:</strong> This agreement is based on the assumption that we, along with necessary associates and inspectors, will have free access to the property, electrical panel, and wiring routes during regular business hours. Notice and request for access will be given and confirmed by the customer.</p>
+            <p className="print:break-inside-avoid"><strong>Incentive and Financing:</strong> We will provide support to help customers navigate government incentives programs and financing options. Approvals and costs of government incentive and financing approvals are the responsibility of the customer, and any financing terms will be set out in a separate financing agreement between the customer and finance company.</p>
+            <p className="print:break-inside-avoid"><strong>Project Timing:</strong> Due to the uncertainty of weather conditions, material supplies, and shipping delays it is not possible to give an exact start date or completion date, however our projects are as a rule completed on a ‘first come first serve basis’, and we will always do our best to get to your project in a timely manner. However, due to such variables, any start date given whether verbal or written are to be considered tentative and cannot be guaranteed.</p>
+            <p className="print:break-inside-avoid"><strong>Work Quality:</strong> Our work will be completed in a quality manner and in compliance with all building and electrical codes, all other applicable laws, and all applicable utility requirements, including appropriate utility interconnection obligations.</p>
+            <p className="print:break-inside-avoid"><strong>Change Orders:</strong> Due to possible unforeseen circumstances such as physical obstacles to solar panel locations, problems with the existing electrical system, or late progress payments causing delays and material price changes, we may need to make changes to the scope of work or adjustments to the price or payment structure. All change orders will be provided to customers for approval before proceeding.</p>
+            <p className="print:break-inside-avoid"><strong>Payment Schedule:</strong> We require progress payments at certain stages of the project in order to proceed. See Pricing Summary for progress payments terms and amounts. Failure to make progress payments or approve financing payments may result in stop-work, stop-progress orders, project delays, and/or additional costs.</p>
+            <p className="print:break-inside-avoid"><strong>Cancellation:</strong> The customer may cancel the installation during any stage of the project. If the customer cancels prior to the installation start-date, any deposits and progress payments are fully refundable, less any permit fees or other expenses incurred, and a 25% restocking fee on any solar equipment & materials purchased. If the customer cancels after the physical installation has begun, no refunds will be available. Security deposits for financing customers will be fully refundable on completion of the job, less any remaining balance owing.</p>
           </div>
 
-          <div className="break-before-page"></div>
-
-          <div className="mb-6 pt-6">
+          {/* PRINTER FIX: Force the Pricing Summary onto Page 2 */}
+          <div className="mb-6 pt-6 print:break-before-page">
             <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Pricing Summary</h2>
             <p className="mb-4">The following is a summary of pricing for this proposal, subject to the validity period, and otherwise subject to change without notice prior to the contract being signed.</p>
             
-            <div className="bg-slate-50 p-6 border border-slate-200 transition-all duration-300 hover:shadow-md">
+            <div className="bg-slate-50 print:bg-transparent p-6 border border-slate-200 transition-all duration-300 hover:shadow-md print:break-inside-avoid">
               <p className="font-bold mb-2">Incentives & Discounts:</p>
               <ul className="mb-4 space-y-1 ml-4 list-disc">
                 <li>25 Year Longi Module Warranty (Parts & Labor)</li>
@@ -310,14 +276,14 @@ export default function ContractGenerator() {
                   </div>
                   <div className="flex justify-between text-xl pt-2">
                     <span className="font-bold">Total Price:</span>
-                    <span className="font-black bg-yellow-100 px-2 rounded">{fmt.format(total)}</span>
+                    <span className="font-black bg-yellow-100 print:bg-transparent px-2 rounded">{fmt.format(total)}</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mb-8">
+          <div className="mb-8 print:break-inside-avoid">
             <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Payment Schedule (No Financing)</h2>
             <p className="mb-2">We require Progress Payments as follows:</p>
             <table className="w-full text-sm text-left border-collapse mb-4 transition-all duration-300">
@@ -342,7 +308,7 @@ export default function ContractGenerator() {
             <p className="mt-4 italic">._______________________________________ Initial Here to Opt-In to Payment Schedule</p>
           </div>
 
-          <div className="mb-8">
+          <div className="mb-8 print:break-inside-avoid">
             <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Financing Option = 2.99% Fee</h2>
             <p className="mb-2">We require Progress Payments as follows:</p>
             <table className="w-full text-sm text-left border-collapse mb-4 transition-all duration-300">
@@ -359,13 +325,13 @@ export default function ContractGenerator() {
             <p className="mt-4 italic">._______________________________________ Initial Here to Opt-In to Financing</p>
           </div>
 
-          <div className="mt-12 pt-8 border-t-2 border-slate-800 text-[12px] text-justify space-y-4">
+          <div className="mt-12 pt-8 border-t-2 border-slate-800 text-[12px] text-justify space-y-4 print:break-inside-avoid">
             <h2 className="text-lg font-bold uppercase tracking-wider mb-2">Confirmation of Contract</h2>
             <p>On signature by all the parties this Confidential Proposal constitutes a binding contract and records the entire understanding. The company entering into this contract is Stardust Solar and will be bound by all the terms and conditions set out in this document. The person(s) signing as customer confirms that he/she is a registered owner(s) of the property or is authorized to sign the contract and bind the owner. No other understanding, collateral or otherwise, shall be binding unless agreed in writing and signed by all parties. Receipt of a copy of this contract is hereby acknowledged. All contracts are subject to a site assessment and verification of the feasibility of the scope of work by Stardust Solar. Additional terms and conditions are attached.</p>
             <p>The parties agree to indemnify and defend the other party and its directors, officers, employees, agents, representatives, and affiliates and hold them harmless from and against any and all losses, liabilities, damages, claims, suits, actions, judgments, assessments, costs and expenses, including without limitation interest, penalties, attorney fees, any and all expenses incurred in investigating, preparing, or defending against any litigation, commenced or threatened, or any claim whatsoever, and any and all amounts paid in settlement of any claim or litigation asserted against, imposed on, or incurred or suffered by any of them, directly or indirectly, as a result of or arising from the negligent or wrongful acts or omissions of the other party, from any breach of this agreement by the other party, or from any finding, judgment or other determination or settlement whereby the customer is deemed or considered to be the employer of contractor or of contractor's personnel.</p>
           </div>
 
-          <div className="mt-12 grid grid-cols-2 gap-12">
+          <div className="mt-12 grid grid-cols-2 gap-12 print:break-inside-avoid">
             <div>
               <div className="border-b border-black h-8 mb-2"></div>
               <p className="text-xs font-bold uppercase text-slate-500">Customer Signature</p>
@@ -385,7 +351,7 @@ export default function ContractGenerator() {
             </div>
           </div>
 
-          <div className="mt-12 break-inside-avoid">
+          <div className="mt-12 print:break-before-page">
             <h2 className="text-lg font-bold border-b border-slate-300 mb-4 uppercase tracking-wider">Additional Notes</h2>
             <div className="space-y-8 mt-8">
               <div className="border-b border-slate-400 w-full"></div>

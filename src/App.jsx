@@ -18,19 +18,29 @@ import EstimateBuilder from './components/EstimateBuilder/EstimateBuilder'
 import ContractGenerator from './components/ContractGenerator/ContractGenerator'
 
 const SECTIONS = {
-  welcome: Dashboard,
-  tech: SolarTech101,
-  script: ScriptBuilder,
-  audio: AudioDriller,
-  objections: ObjectionBuster,
-  ops: FieldOps,
-  sketch: SiteSketcher,
-  estimate: EstimateBuilder,
-  library: Resources,
-  customers: CustomerTracker,
-  commission: CommissionCalc,
-  contract: ContractGenerator,
+  // Daily Operations
+  dashboard: Dashboard,
+  tracker: CustomerTracker,
   leaderboard: Leaderboard,
+  
+  // The Sales Toolkit
+  sketcher: SiteSketcher,
+  builder: EstimateBuilder,
+  contract: ContractGenerator,
+  fieldops: FieldOps,
+  
+  // The War Room
+  driller: AudioDriller,
+  script: ScriptBuilder,
+  objection: ObjectionBuster,
+  tech101: SolarTech101,
+  
+  // Growth & Resources
+  commission: CommissionCalc,
+  resources: Resources,
+  
+  // Fallbacks
+  welcome: Dashboard,
 }
 
 export default function App() {
@@ -93,10 +103,16 @@ export default function App() {
   const ActiveSection = SECTIONS[activeSection] || Dashboard
 
   return (
-    <div className="flex h-screen overflow-hidden font-sans text-slate-900 bg-slate-50">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto p-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
-        <div className="fade-in">
+    // PRINTER FIX: Added print:block, print:h-auto, print:overflow-visible to un-constrain the layout
+    <div className="flex h-screen overflow-hidden font-sans text-slate-900 bg-slate-50 print:block print:h-auto print:overflow-visible print:bg-white">
+      {/* PRINTER FIX: Force Sidebar to hide completely */}
+      <div className="print:hidden z-20 shrink-0 h-full">
+        <Sidebar />
+      </div>
+      
+      {/* PRINTER FIX: Remove scrollbars and background textures on print */}
+      <main className="flex-1 overflow-y-auto p-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] print:p-0 print:bg-none print:overflow-visible print:h-auto print:block">
+        <div key={activeSection} className="animate-fade-in-up print:animate-none">
           <ActiveSection />
         </div>
       </main>
