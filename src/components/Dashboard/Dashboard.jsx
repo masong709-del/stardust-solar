@@ -130,14 +130,13 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="w-full">
+    <div className="fixed inset-0 overflow-y-auto bg-slate-950 md:bg-slate-50 transition-colors duration-300">
 
       {/* ========================================= */}
-      {/* MOBILE ONLY VIEW                          */}
+      {/* MOBILE ONLY VIEW (Untouched)              */}
       {/* ========================================= */}
       <div className="block md:hidden bg-slate-950 min-h-screen pb-6 font-sans overflow-hidden text-slate-200">
         
-        {/* Dynamic Gamified Header */}
         <div className={`bg-gradient-to-b ${mobileThemeHeader} pt-8 pb-12 px-5 rounded-b-[2.5rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] relative z-10 transition-colors duration-1000 animate-fade-in-up`}>
           <div className={`absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 rounded-full ${mobileIconGlow} blur-3xl pointer-events-none transition-colors duration-1000`}></div>
           <div className="relative z-10">
@@ -150,7 +149,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Floating Metrics Grid */}
         <div className="grid grid-cols-2 gap-3 px-5 -mt-6 relative z-20">
           <div className={`bg-slate-900 p-3.5 rounded-2xl shadow-lg border ${mobileThemeCardBorder} transform transition-all duration-300 active:scale-95 animate-fade-in-up`} style={{ animationDelay: '100ms' }}>
             <div className="flex items-center gap-2 mb-1.5">
@@ -193,7 +191,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Activity Feed */}
         <div className="px-5 mt-8 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
           <div className="flex justify-between items-end mb-3 px-1">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-600">Recent Activity</h3>
@@ -223,7 +220,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* CENTERED Floating Action Button (FAB) Overlay & Menu */}
         {isFabOpen && (
           <div 
             className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 transition-opacity animate-fade-in"
@@ -235,7 +231,6 @@ export default function Dashboard() {
           {isFabOpen && (
             <div className="flex flex-col items-center gap-3 mb-2 w-48">
               
-              {/* --- TRAINING SUB-MENU --- */}
               {fabMode === 'training' ? (
                 <>
                   <button onClick={() => handleRoute('driller')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '0ms' }}>
@@ -255,13 +250,11 @@ export default function Dashboard() {
                     <span className="text-xs font-bold tracking-wide">Solar Tech 101</span>
                   </button>
                   
-                  {/* Back to main FAB menu */}
                   <button onClick={() => { triggerHaptic(); setFabMode('main') }} className="mt-2 flex items-center justify-center gap-2 bg-slate-900 text-slate-400 px-4 py-2 rounded-full border border-slate-800 active:scale-95 transition-transform animate-fade-in">
                     <ArrowLeft size={14} /> <span className="text-[10px] font-bold uppercase tracking-wider">Back</span>
                   </button>
                 </>
               ) : (
-                /* --- MAIN FAB MENU --- */
                 <>
                   <button onClick={() => { triggerHaptic(); setFabMode('training') }} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '0ms' }}>
                     <div className="w-9 h-9 rounded-full bg-orange-900/50 flex items-center justify-center shrink-0"><BookOpen size={16} className="text-orange-400"/></div>
@@ -297,14 +290,14 @@ export default function Dashboard() {
       {/* ========================================= */}
       {/* DESKTOP ONLY VIEW                         */}
       {/* ========================================= */}
-      <div className="hidden md:block max-w-5xl mx-auto pb-12">
-        <div className="animate-fade-in-up">
+      <div className="hidden md:flex flex-col items-center w-full min-h-screen py-12 px-8 lg:px-12 pb-32 text-slate-800">
+        <div className="w-full max-w-7xl animate-fade-in-up">
           
-          <h1 className="text-4xl font-black text-blue-900 mb-2">Welcome back, {profile?.full_name?.split(' ')[0] || 'Mason'}!</h1>
+          <h1 className="text-4xl font-black text-slate-900 mb-2">Welcome back, {profile?.full_name?.split(' ')[0] || 'Mason'}!</h1>
           <p className="text-slate-500 text-lg mb-8">Ready to crush some doors today?</p>
           
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-            <h2 className="text-4xl font-black text-blue-900 flex items-center gap-3">
+            <h2 className="text-4xl font-black text-slate-900 flex items-center gap-3">
               Rep Dashboard
             </h2>
             <div className="flex items-center gap-3">
@@ -318,7 +311,7 @@ export default function Dashboard() {
                   <button
                     key={p}
                     onClick={() => setActivePeriod(p)}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${activePeriod === p ? 'bg-blue-900 text-yellow-400 shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${activePeriod === p ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
                   >
                     {p.charAt(0).toUpperCase() + p.slice(1)}
                   </button>
@@ -327,27 +320,14 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-400 text-xs uppercase tracking-wider mb-2">Doors Knocked</h3>
-              <p className="text-3xl font-black text-blue-900">{goals.knocks}</p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-400 text-xs uppercase tracking-wider mb-2">Appointments Set</h3>
-              <p className="text-3xl font-black text-blue-900">{goals.apps}</p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-400 text-xs uppercase tracking-wider mb-2">Potential Commission</h3>
-              <p className="text-3xl font-black text-green-600">${(goals.deals * 1500).toLocaleString()}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+            <div className="lg:col-span-2 space-y-8">
+              
+              {/* THEME FIX: Performance Tracking card now has border-t-blue-500 */}
+              <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-200 border-t-4 border-t-blue-500">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-bold text-xl text-blue-900">Performance Tracking</h3>
-                  <span className="text-xs font-bold text-slate-400 uppercase bg-slate-100 px-3 py-1 rounded-full">
+                  <h3 className="font-bold text-xl text-slate-900">Performance Tracking</h3>
+                  <span className="text-xs font-bold text-slate-500 uppercase bg-slate-100 px-3 py-1 rounded-full">
                     {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </span>
                 </div>
@@ -358,8 +338,8 @@ export default function Dashboard() {
                       <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider group-hover:text-blue-900 transition-colors">{label}</label>
                       <div className="flex items-center justify-between">
                         <button onClick={() => handleAdjust(type, -1)} className="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 hover:text-red-500 transition-all active:scale-95">-</button>
-                        <span className="text-5xl font-black text-blue-900 tracking-tighter">{goals[type]}</span>
-                        <button onClick={() => handleAdjust(type, 1)} className="w-10 h-10 rounded-full bg-blue-900 text-white font-bold hover:bg-yellow-400 hover:text-blue-900 transition-all active:scale-95">+</button>
+                        <span className="text-5xl font-black text-slate-900 tracking-tighter">{goals[type]}</span>
+                        <button onClick={() => handleAdjust(type, 1)} className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all active:scale-95">+</button>
                       </div>
                     </div>
                   ))}
@@ -367,7 +347,7 @@ export default function Dashboard() {
 
                 <div>
                   <div className="flex justify-between items-end mb-4">
-                    <label className="text-xs font-black uppercase text-blue-900 tracking-wider">
+                    <label className="text-xs font-black uppercase text-slate-900 tracking-wider">
                       <Award size={14} className="inline mr-1 text-green-500"/>
                       {activePeriod === 'weekly' ? 'Weekly' : 'Monthly'} Deals Closed
                     </label>
@@ -404,9 +384,10 @@ export default function Dashboard() {
 
               </div>
 
-              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+              {/* THEME FIX: Conversion Analytics card now has border-t-yellow-500 */}
+              <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-200 border-t-4 border-t-yellow-500">
                 <div className="flex justify-between items-center mb-6">
-                  <h4 className="text-sm font-black uppercase text-blue-900 tracking-wider">
+                  <h4 className="text-sm font-black uppercase text-slate-900 tracking-wider">
                     <i className="fas fa-chart-pie text-yellow-500 mr-2"></i>Conversion Analytics
                   </h4>
                 </div>
@@ -454,8 +435,8 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="bg-blue-900 text-white p-8 rounded-3xl shadow-lg relative overflow-hidden group">
+            <div className="space-y-8">
+              <div className="bg-blue-900 text-white p-8 rounded-3xl shadow-xl relative overflow-hidden group">
                 <i className="fas fa-lightbulb absolute -right-4 -bottom-4 text-8xl text-blue-800 opacity-50 group-hover:scale-110 transition-transform"></i>
                 <h4 className="font-bold text-yellow-400 mb-4 uppercase text-xs tracking-widest flex items-center gap-2">
                   <Zap size={14} /> Mason's Tip
@@ -465,7 +446,7 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-8 rounded-3xl shadow-lg relative border border-slate-700">
+              <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl relative border border-slate-800">
                 <h4 className="font-bold text-slate-400 mb-6 uppercase text-xs tracking-widest">Pace to Target</h4>
                 <div className="text-center">
                   <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Doors to hit President's Club</p>
@@ -476,6 +457,7 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+          
         </div>
       </div>
 
