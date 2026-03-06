@@ -50,37 +50,29 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* MOBILE TOP BAR (Only visible on small screens) */}
-      <div className="md:hidden flex items-center justify-between bg-slate-900 text-white p-4 border-b border-slate-800 shadow-md relative z-30">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
-            <i className="fas fa-bolt text-blue-900 text-xs font-black"></i>
-          </div>
-          <h1 className="font-black text-lg tracking-tighter uppercase">Stardust</h1>
-        </div>
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="text-white hover:text-yellow-400 focus:outline-none p-2"
-        >
-          <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
-        </button>
-      </div>
+      {/* FLOATING MOBILE MENU BUTTON (Replaces the blocky top bar) */}
+      <button 
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        className="md:hidden fixed top-4 right-4 z-[9999] bg-slate-900 text-white w-12 h-12 rounded-full shadow-2xl border border-slate-700 flex items-center justify-center transition-transform active:scale-95"
+      >
+        <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-lg`}></i>
+      </button>
 
       {/* MOBILE OVERLAY (Darkens background when menu is open) */}
       {isMobileMenuOpen && (
         <div 
-          className="md:hidden fixed inset-0 bg-black/50 z-30"
+          className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
           onClick={() => setIsMobileMenuOpen(false)}
         ></div>
       )}
 
       {/* SIDEBAR (Responsive behavior) */}
       <aside className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white flex flex-col h-screen shadow-2xl transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col h-screen shadow-2xl transition-transform duration-300 ease-in-out
         md:relative md:translate-x-0
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        {/* Brand Header */}
+        {/* Brand Header - ONLY VISIBLE ON DESKTOP */}
         <div className="p-6 border-b border-slate-800 hidden md:block">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-lg">
@@ -94,7 +86,7 @@ export default function Sidebar() {
         </div>
 
         {/* Navigation Groups */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pt-12 md:pt-4">
           {MENU_GROUPS.map((group, groupIndex) => (
             <div key={groupIndex} className="animate-fade-in-up" style={{ animationDelay: `${groupIndex * 100}ms` }}>
               <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3 px-3">
@@ -109,8 +101,8 @@ export default function Sidebar() {
                         onClick={() => handleNavigation(item.id)}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 group ${
                           isActive 
-                            ? 'bg-blue-900 text-yellow-400 shadow-md' 
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            ? 'bg-blue-600 text-white shadow-md' 
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                         }`}
                       >
                         <i className={`${item.icon} w-5 text-center transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}></i>
@@ -125,7 +117,7 @@ export default function Sidebar() {
         </nav>
 
         {/* User Profile Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+        <div className="p-4 border-t border-slate-800 bg-slate-900/50 pb-8 md:pb-4">
           <button 
             onClick={() => handleNavigation('welcome')}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 transition-colors text-left"
