@@ -58,17 +58,18 @@ function analyzeTranscript(text) {
   return { feedback, wordCount: words.length, strongFound, totalFillers }
 }
 
+// THEME FIX: Responsive mappings for AI feedback cards (Mobile Dark / Desktop Light)
 const COLOR = {
-  green: 'border-green-400 bg-green-50 text-green-900',
-  blue: 'border-blue-400 bg-blue-50 text-blue-900',
-  yellow: 'border-yellow-400 bg-yellow-50 text-yellow-900',
-  red: 'border-red-400 bg-red-50 text-red-900',
+  green: 'border-green-500 md:border-green-400 bg-green-900/20 md:bg-green-50 text-green-100 md:text-green-900',
+  blue: 'border-blue-500 md:border-blue-400 bg-blue-900/20 md:bg-blue-50 text-blue-100 md:text-blue-900',
+  yellow: 'border-yellow-500 md:border-yellow-400 bg-yellow-900/20 md:bg-yellow-50 text-yellow-100 md:text-yellow-900',
+  red: 'border-red-500 md:border-red-400 bg-red-900/20 md:bg-red-50 text-red-100 md:text-red-900',
 }
 const LABEL_COLOR = {
-  green: 'text-green-600',
-  blue: 'text-blue-600',
-  yellow: 'text-yellow-600',
-  red: 'text-red-600',
+  green: 'text-green-400 md:text-green-600',
+  blue: 'text-blue-400 md:text-blue-600',
+  yellow: 'text-yellow-400 md:text-yellow-600',
+  red: 'text-red-400 md:text-red-600',
 }
 const ICON_MAP = {
   green: <CheckCircle2 size={16} className="text-green-500" />,
@@ -89,21 +90,18 @@ export default function AudioDriller() {
   const [drillCount, setDrillCount] = useState(() => parseInt(localStorage.getItem('solarDrillCount') || '0'))
   const [supported, setSupported] = useState(true)
   
-  // NEW: Teleprompter tracking state
   const [activeWordIndex, setActiveWordIndex] = useState(-1)
 
   const recognitionRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
   
-  // NEW: Refs to keep track of state inside the speech recognition closure
   const accumulatedTranscriptRef = useRef('')
   const activeIndexRef = useRef(-1)
   const scriptWordsRef = useRef([])
 
   const currentScript = savedScripts[selectedIdx]
 
-  // Update script words ref when script changes
   useEffect(() => {
     scriptWordsRef.current = currentScript ? currentScript.script.split(/\s+/) : []
     setActiveWordIndex(-1)
@@ -122,7 +120,6 @@ export default function AudioDriller() {
       let currentInterim = ''
       let newFinal = ''
       
-      // 1. Better Transcript Accumulation (Catches Fillers)
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) {
           newFinal += e.results[i][0].transcript + ' '
@@ -139,13 +136,9 @@ export default function AudioDriller() {
       setTranscript(currentFullTranscript)
       setInterimTranscript(currentInterim)
 
-      // 2. Pro-Level "Sliding Window" Teleprompter Matcher
       const spokenWords = currentFullTranscript.toLowerCase().trim().split(/\s+/)
       if (spokenWords.length > 0) {
-        // Grab the last spoken word and clean it
         const lastSpokenWord = spokenWords[spokenWords.length - 1].replace(/[^\w]/g, '')
-        
-        // Only search the next 5 words in the script to allow for skipping/stuttering
         const searchLimit = Math.min(activeIndexRef.current + 6, scriptWordsRef.current.length)
         
         for (let i = activeIndexRef.current + 1; i < searchLimit; i++) {
@@ -227,193 +220,202 @@ export default function AudioDriller() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-12">
-      <div className="flex justify-between items-end mb-8 animate-fade-in-up">
-        <div>
-          <h2 className="text-4xl font-black text-blue-900 mb-2">AI Audio Driller</h2>
-          <p className="text-slate-500 italic">Record your pitch. Get instant AI coaching on delivery, fillers, and keywords.</p>
-        </div>
-        <div className="hidden md:block text-right">
-          <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">Total Drills</p>
-          <p className="text-3xl font-black text-blue-900">{drillCount}</p>
-        </div>
-      </div>
-
-      {!supported && (
-        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 text-sm font-bold flex items-center gap-2 animate-fade-in-up">
-          <AlertCircle size={18} /> Speech recognition is not supported in this browser. Use Chrome or Edge.
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    /* BREAKOUT FIX: 
+       Mobile: fixed inset-0, overflow-y-auto, bg-slate-950 (Dark Edge-to-Edge)
+       Desktop: relative, md:inset-auto, bg-slate-50 (Light, left-aligned)
+    */
+    <div className="fixed inset-0 overflow-y-auto bg-slate-950 text-slate-300 md:relative md:inset-auto md:bg-slate-50 md:text-slate-800 font-sans transition-colors duration-300">
+      
+      {/* CONTAINER: Clean padding and max-width for desktop */}
+      <div className="w-full min-h-screen p-4 md:p-8 lg:p-12 pb-32 md:max-w-7xl md:mx-0">
         
-        {/* LEFT COLUMN: Controls & Script Selection */}
-        <div className="lg:col-span-5 space-y-6 animate-fade-in-up delay-100">
-          <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 transition-all duration-300 hover:shadow-xl">
-            <h3 className="text-sm font-black uppercase tracking-widest text-blue-900 mb-4 flex items-center gap-2">
-              <FileText size={16} className="text-yellow-500"/> Select Script
-            </h3>
-            {savedScripts.length === 0 ? (
-              <p className="text-sm text-slate-500 italic bg-slate-50 p-4 rounded-xl border border-slate-100">No saved scripts yet. Build one in the Script Builder first.</p>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                {savedScripts.map((s, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedIdx(i)}
-                    className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all duration-200 ${selectedIdx === i ? 'border-blue-900 bg-blue-50 text-blue-900 shadow-sm' : 'border-slate-100 hover:border-blue-200 text-slate-600 hover:bg-slate-50'}`}
-                  >
-                    {s.name}
-                  </button>
-                ))}
-              </div>
-            )}
+        <div className="flex flex-col md:flex-row justify-between items-center md:items-end mb-8 gap-4 animate-fade-in-up">
+          <div className="text-center md:text-left">
+            <h2 className="text-4xl font-black text-white md:text-blue-900 mb-2">AI Audio Driller</h2>
+            <p className="text-slate-400 md:text-slate-500 italic">Record your pitch. Get instant AI coaching on delivery, fillers, and keywords.</p>
           </div>
-
-          <div className="bg-white p-8 rounded-3xl shadow-lg border border-slate-200 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-xl py-12">
-            <div className="relative mb-6">
-              {!isRecording ? (
-                <button
-                  onClick={startRecording}
-                  disabled={savedScripts.length === 0}
-                  className="w-28 h-28 rounded-full bg-red-500 text-white shadow-lg shadow-red-500/30 flex items-center justify-center transition-all duration-300 transform hover:scale-105 active:scale-95 hover:bg-red-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  <Mic size={48} fill="currentColor" />
-                </button>
-              ) : (
-                <>
-                  <div className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-20 scale-150"></div>
-                  <button
-                    onClick={stopRecording}
-                    className="w-28 h-28 rounded-full bg-slate-800 text-white shadow-xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 active:scale-95 hover:bg-slate-700 relative z-10"
-                  >
-                    <Square size={36} fill="currentColor" />
-                  </button>
-                </>
-              )}
-            </div>
-            
-            <p className={`text-sm font-black uppercase tracking-widest transition-colors duration-300 ${isRecording ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>
-              {isRecording ? '● Recording Live' : 'Tap to Start Drill'}
-            </p>
-
-            {audioURL && (
-              <div className="w-full mt-8 animate-fade-in-up">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 text-center">Last Recording</p>
-                <audio src={audioURL} controls className="w-full h-10 rounded-full" />
-              </div>
-            )}
+          <div className="text-center md:text-right">
+            <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 md:text-slate-400">Total Drills</p>
+            <p className="text-3xl font-black text-white md:text-blue-900">{drillCount}</p>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Teleprompter & Transcript */}
-        <div className="lg:col-span-7 space-y-6 animate-fade-in-up delay-200">
+        {!supported && (
+          <div className="bg-red-900/30 border border-red-800 md:bg-red-50 md:border-red-200 text-red-400 md:text-red-700 p-4 rounded-xl mb-6 text-sm font-bold flex items-center gap-2 animate-fade-in-up">
+            <AlertCircle size={18} /> Speech recognition is not supported in this browser. Use Chrome or Edge.
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* UPDATED TELEPROMPTER: Karaoke Style */}
-          {currentScript ? (
-            <div className={`bg-slate-900 p-8 rounded-3xl border-2 transition-all duration-500 relative overflow-hidden ${isRecording ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]' : 'border-slate-800 shadow-xl hover:border-slate-700'}`}>
-              {isRecording && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 animate-pulse"></div>}
-              <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Teleprompter</p>
-                {isRecording && <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded font-bold uppercase tracking-wider flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500 animate-ping"></div> Live</span>}
-              </div>
-              
-              <div className="flex flex-wrap gap-x-2 gap-y-3">
-                {scriptWordsRef.current.map((word, i) => (
-                  <span
-                    key={i}
-                    className={`text-2xl font-medium transition-all duration-300 ${
-                      i <= activeWordIndex 
-                        ? 'text-yellow-400 scale-[1.02] drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]' 
-                        : 'text-slate-400 opacity-60'
-                    }`}
-                  >
-                    {word}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-slate-100 p-8 rounded-3xl border-2 border-dashed border-slate-300 text-center flex flex-col items-center justify-center min-h-[200px]">
-               <FileText size={32} className="text-slate-300 mb-3" />
-               <p className="text-slate-500 font-bold">Select a script to view the teleprompter.</p>
-            </div>
-          )}
-
-          {/* AI Feedback Wrapper */}
-          {feedback ? (
-            <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-200 animate-fade-in-up">
-              <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
-                <h3 className="font-black text-blue-900 uppercase tracking-widest text-sm flex items-center gap-2">
-                  <Bot size={18} className="text-green-500"/> AI Coach Analysis
-                </h3>
-                <button
-                  onClick={speakingFeedback ? stopSpeaking : speakFeedback}
-                  className="bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-900 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
-                >
-                  {speakingFeedback ? <><StopCircle size={14}/> Stop Audio</> : <><PlayCircle size={14}/> Listen</>}
-                </button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
-                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-wider mb-1">Words</p>
-                  <p className="text-3xl font-black text-blue-900">{feedback.wordCount}</p>
-                </div>
-                <div className={`p-4 rounded-2xl border text-center ${feedback.totalFillers > 3 ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
-                  <p className={`text-[10px] font-black uppercase tracking-wider mb-1 ${feedback.totalFillers > 3 ? 'text-red-500' : 'text-green-600'}`}>Fillers</p>
-                  <p className={`text-3xl font-black ${feedback.totalFillers > 3 ? 'text-red-600' : 'text-green-700'}`}>{feedback.totalFillers}</p>
-                </div>
-                <div className={`p-4 rounded-2xl border text-center ${feedback.strongFound.length >= 3 ? 'bg-green-50 border-green-100' : 'bg-orange-50 border-orange-100'}`}>
-                  <p className={`text-[10px] font-black uppercase tracking-wider mb-1 ${feedback.strongFound.length >= 3 ? 'text-green-600' : 'text-orange-500'}`}>Keywords</p>
-                  <p className={`text-3xl font-black ${feedback.strongFound.length >= 3 ? 'text-green-700' : 'text-orange-600'}`}>{feedback.strongFound.length}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {feedback.feedback.map((f, i) => (
-                  <div key={i} style={{ animationDelay: `${i * 100}ms` }} className={`p-4 rounded-2xl border-l-4 ${COLOR[f.color]} flex items-start gap-3 animate-fade-in-up`}>
-                    <div className="mt-0.5">{ICON_MAP[f.color]}</div>
-                    <div>
-                      <p className={`text-xs font-black uppercase tracking-widest mb-1 ${LABEL_COLOR[f.color]}`}>{f.label}</p>
-                      <p className="text-sm font-medium opacity-90">{f.text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-8 bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">What we heard:</p>
-                <p className="text-sm text-slate-600 italic leading-relaxed">"{transcript}"</p>
-              </div>
-
-            </div>
-          ) : (
-            <div className="bg-white p-8 rounded-3xl shadow-lg border border-slate-200 min-h-[300px] flex flex-col transition-all duration-300">
-              <h3 className="font-black text-blue-900 uppercase tracking-widest text-sm flex items-center gap-2 mb-6 pb-4 border-b border-slate-100">
-                <Activity size={18} className={isRecording ? 'text-red-500 animate-pulse' : 'text-blue-400'}/> Live Transcript
+          {/* LEFT COLUMN: Controls & Script Selection */}
+          <div className="lg:col-span-5 space-y-6 animate-fade-in-up delay-100">
+            <div className="bg-slate-900 md:bg-white p-6 rounded-3xl shadow-lg border border-slate-800 md:border-slate-200 transition-all duration-300 hover:shadow-xl">
+              <h3 className="text-sm font-black uppercase tracking-widest text-white md:text-blue-900 mb-4 flex items-center gap-2">
+                <FileText size={16} className="text-yellow-500"/> Select Script
               </h3>
-              
-              {transcript || interimTranscript ? (
-                <p className="text-lg text-slate-700 leading-relaxed font-medium">
-                  {transcript}
-                  {interimTranscript && <span className="text-slate-400 italic"> {interimTranscript}</span>}
-                </p>
+              {savedScripts.length === 0 ? (
+                <p className="text-sm text-slate-400 md:text-slate-500 italic bg-slate-950 md:bg-slate-50 p-4 rounded-xl border border-slate-800 md:border-slate-100">No saved scripts yet. Build one in the Script Builder first.</p>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center opacity-60">
-                  <Target size={48} className="text-slate-300 mb-4" />
-                  <p className="text-slate-500 font-bold mb-2">How to drill:</p>
-                  <ol className="text-sm text-slate-500 text-left space-y-1">
-                    <li>1. Select a saved script from the left.</li>
-                    <li>2. Hit the big red record button.</li>
-                    <li>3. Read it aloud naturally.</li>
-                    <li>4. Hit stop to get AI feedback.</li>
-                  </ol>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                  {savedScripts.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedIdx(i)}
+                      className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all duration-200 ${selectedIdx === i ? 'border-blue-500 md:border-blue-900 bg-blue-900/30 md:bg-blue-50 text-white md:text-blue-900 shadow-sm' : 'border-slate-800 md:border-slate-100 hover:border-blue-400 md:hover:border-blue-200 text-slate-400 md:text-slate-600 hover:bg-slate-800 md:hover:bg-slate-50'}`}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
-          )}
-          
+
+            <div className="bg-slate-900 md:bg-white p-8 rounded-3xl shadow-lg border border-slate-800 md:border-slate-200 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-xl py-12">
+              <div className="relative mb-6">
+                {!isRecording ? (
+                  <button
+                    onClick={startRecording}
+                    disabled={savedScripts.length === 0}
+                    className="w-28 h-28 rounded-full bg-red-500 text-white shadow-lg shadow-red-500/30 flex items-center justify-center transition-all duration-300 transform hover:scale-105 active:scale-95 hover:bg-red-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    <Mic size={48} fill="currentColor" />
+                  </button>
+                ) : (
+                  <>
+                    <div className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-20 scale-150"></div>
+                    <button
+                      onClick={stopRecording}
+                      className="w-28 h-28 rounded-full bg-slate-800 text-white shadow-xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 active:scale-95 hover:bg-slate-700 relative z-10 border border-slate-700"
+                    >
+                      <Square size={36} fill="currentColor" />
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              <p className={`text-sm font-black uppercase tracking-widest transition-colors duration-300 ${isRecording ? 'text-red-500 animate-pulse' : 'text-slate-500 md:text-slate-400'}`}>
+                {isRecording ? '● Recording Live' : 'Tap to Start Drill'}
+              </p>
+
+              {audioURL && (
+                <div className="w-full mt-8 animate-fade-in-up">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 md:text-slate-400 mb-2 text-center">Last Recording</p>
+                  <audio src={audioURL} controls className="w-full h-10 rounded-full" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Teleprompter & Transcript */}
+          <div className="lg:col-span-7 space-y-6 animate-fade-in-up delay-200">
+            
+            {/* TELEPROMPTER */}
+            {currentScript ? (
+              <div className={`bg-slate-950 md:bg-slate-900 p-8 rounded-3xl border-2 transition-all duration-500 relative overflow-hidden ${isRecording ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]' : 'border-slate-800 shadow-xl hover:border-slate-700'}`}>
+                {isRecording && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 animate-pulse"></div>}
+                <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Teleprompter</p>
+                  {isRecording && <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded font-bold uppercase tracking-wider flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500 animate-ping"></div> Live</span>}
+                </div>
+                
+                <div className="flex flex-wrap gap-x-2 gap-y-3">
+                  {scriptWordsRef.current.map((word, i) => (
+                    <span
+                      key={i}
+                      className={`text-2xl font-medium transition-all duration-300 ${
+                        i <= activeWordIndex 
+                          ? 'text-yellow-400 scale-[1.02] drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]' 
+                          : 'text-slate-500 md:text-slate-400 opacity-60'
+                      }`}
+                    >
+                      {word}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-900 md:bg-slate-100 p-8 rounded-3xl border-2 border-dashed border-slate-800 md:border-slate-300 text-center flex flex-col items-center justify-center min-h-[200px]">
+                 <FileText size={32} className="text-slate-600 md:text-slate-300 mb-3" />
+                 <p className="text-slate-400 md:text-slate-500 font-bold">Select a script to view the teleprompter.</p>
+              </div>
+            )}
+
+            {/* AI FEEDBACK */}
+            {feedback ? (
+              <div className="bg-slate-900 md:bg-white p-8 rounded-3xl shadow-xl border border-slate-800 md:border-slate-200 animate-fade-in-up">
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800 md:border-slate-100">
+                  <h3 className="font-black text-white md:text-blue-900 uppercase tracking-widest text-sm flex items-center gap-2">
+                    <Bot size={18} className="text-green-500"/> AI Coach Analysis
+                  </h3>
+                  <button
+                    onClick={speakingFeedback ? stopSpeaking : speakFeedback}
+                    className="bg-blue-900/30 md:bg-blue-50 text-blue-400 md:text-blue-700 hover:bg-blue-800 md:hover:bg-blue-100 hover:text-white md:hover:text-blue-900 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                  >
+                    {speakingFeedback ? <><StopCircle size={14}/> Stop Audio</> : <><PlayCircle size={14}/> Listen</>}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-8">
+                  <div className="bg-slate-950 md:bg-slate-50 p-4 rounded-2xl border border-slate-800 md:border-slate-100 text-center">
+                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-wider mb-1">Words</p>
+                    <p className="text-3xl font-black text-white md:text-blue-900">{feedback.wordCount}</p>
+                  </div>
+                  <div className={`p-4 rounded-2xl border text-center ${feedback.totalFillers > 3 ? 'bg-red-900/20 border-red-900/50 md:bg-red-50 md:border-red-100' : 'bg-green-900/20 border-green-900/50 md:bg-green-50 md:border-green-100'}`}>
+                    <p className={`text-[10px] font-black uppercase tracking-wider mb-1 ${feedback.totalFillers > 3 ? 'text-red-400 md:text-red-500' : 'text-green-400 md:text-green-600'}`}>Fillers</p>
+                    <p className={`text-3xl font-black ${feedback.totalFillers > 3 ? 'text-red-500 md:text-red-600' : 'text-green-500 md:text-green-700'}`}>{feedback.totalFillers}</p>
+                  </div>
+                  <div className={`p-4 rounded-2xl border text-center ${feedback.strongFound.length >= 3 ? 'bg-green-900/20 border-green-900/50 md:bg-green-50 md:border-green-100' : 'bg-orange-900/20 border-orange-900/50 md:bg-orange-50 md:border-orange-100'}`}>
+                    <p className={`text-[10px] font-black uppercase tracking-wider mb-1 ${feedback.strongFound.length >= 3 ? 'text-green-400 md:text-green-600' : 'text-orange-400 md:text-orange-500'}`}>Keywords</p>
+                    <p className={`text-3xl font-black ${feedback.strongFound.length >= 3 ? 'text-green-500 md:text-green-700' : 'text-orange-500 md:text-orange-600'}`}>{feedback.strongFound.length}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {feedback.feedback.map((f, i) => (
+                    <div key={i} style={{ animationDelay: `${i * 100}ms` }} className={`p-4 rounded-2xl border-l-4 ${COLOR[f.color]} flex items-start gap-3 animate-fade-in-up`}>
+                      <div className="mt-0.5">{ICON_MAP[f.color]}</div>
+                      <div>
+                        <p className={`text-xs font-black uppercase tracking-widest mb-1 ${LABEL_COLOR[f.color]}`}>{f.label}</p>
+                        <p className="text-sm font-medium opacity-90">{f.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 bg-slate-950 md:bg-slate-50 p-6 rounded-2xl border border-slate-800 md:border-slate-100">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 md:text-slate-400 mb-2">What we heard:</p>
+                  <p className="text-sm text-slate-300 md:text-slate-600 italic leading-relaxed">"{transcript}"</p>
+                </div>
+
+              </div>
+            ) : (
+              <div className="bg-slate-900 md:bg-white p-8 rounded-3xl shadow-lg border border-slate-800 md:border-slate-200 min-h-[300px] flex flex-col transition-all duration-300">
+                <h3 className="font-black text-white md:text-blue-900 uppercase tracking-widest text-sm flex items-center gap-2 mb-6 pb-4 border-b border-slate-800 md:border-slate-100">
+                  <Activity size={18} className={isRecording ? 'text-red-500 animate-pulse' : 'text-blue-500 md:text-blue-400'}/> Live Transcript
+                </h3>
+                
+                {transcript || interimTranscript ? (
+                  <p className="text-lg text-slate-200 md:text-slate-700 leading-relaxed font-medium">
+                    {transcript}
+                    {interimTranscript && <span className="text-slate-500 md:text-slate-400 italic"> {interimTranscript}</span>}
+                  </p>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center opacity-60">
+                    <Target size={48} className="text-slate-600 md:text-slate-300 mb-4" />
+                    <p className="text-slate-400 md:text-slate-500 font-bold mb-2">How to drill:</p>
+                    <ol className="text-sm text-slate-500 md:text-slate-500 text-left space-y-1">
+                      <li>1. Select a saved script from the left.</li>
+                      <li>2. Hit the big red record button.</li>
+                      <li>3. Read it aloud naturally.</li>
+                      <li>4. Hit stop to get AI feedback.</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+            )}
+            
+          </div>
         </div>
       </div>
     </div>
