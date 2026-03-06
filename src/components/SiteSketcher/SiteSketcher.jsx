@@ -2,17 +2,14 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import {
   Square, Home, Circle, Minus, ArrowRight, Type,
   Move, Eraser, Undo2, Redo2, Trash2, Download, ClipboardCheck,
-  Palette, BoxSelect, Hexagon, Save, FolderOpen
+  Palette, Hexagon, Save, FolderOpen, AlertTriangle, XCircle, CheckCircle2
 } from 'lucide-react'
 
-// Coordinate system remains 1000x500 regardless of screen size
-const VIRTUAL_W = 1000
-const VIRTUAL_H = 500
 const GRID = 20
 
 const TOOLS = [
   { id: 'rect',   label: 'Plane',  Icon: Square,     group: 'draw' },
-  { id: 'poly',   label: 'Custom', Icon: Hexagon,    group: 'draw' }, // NEW: Polygon Tool
+  { id: 'poly',   label: 'Custom', Icon: Hexagon,    group: 'draw' }, 
   { id: 'dormer', label: 'Dormer', Icon: Home,       group: 'draw' },
   { id: 'circle', label: 'Vent',   Icon: Circle,     group: 'draw' },
   { id: 'line',   label: 'Line',   Icon: Minus,      group: 'draw' },
@@ -27,7 +24,6 @@ const CHECKLIST = [
   'Direction added',
   'Lengths added',
   'Obstacles added',
-  'Relative measurements',
   'Pitch added',
   'Orientation added',
 ]
@@ -38,10 +34,11 @@ function snap(val) {
   return Math.round(val / GRID) * GRID
 }
 
-function getMousePos(canvas, evt) {
+// THEME FIX: Updated to accept dynamic virtual width/height to prevent distortion
+function getMousePos(canvas, evt, virtualW, virtualH) {
   const rect = canvas.getBoundingClientRect()
-  const scaleX = VIRTUAL_W / rect.width
-  const scaleY = VIRTUAL_H / rect.height
+  const scaleX = virtualW / rect.width
+  const scaleY = virtualH / rect.height
   let cx = evt.clientX
   let cy = evt.clientY
   if (evt.touches && evt.touches.length > 0) {
@@ -70,7 +67,6 @@ function drawRect(ctx, obj) {
   ctx.stroke()
 }
 
-// NEW: Polygon Drawing Logic
 function drawPoly(ctx, obj) {
   if (!obj.points || obj.points.length === 0) return
   const color = obj.color || '#1e3a8a'
@@ -82,7 +78,7 @@ function drawPoly(ctx, obj) {
   }
   
   if (!obj.closed && obj.currentPos) {
-    ctx.lineTo(obj.currentPos.x, obj.currentPos.y) // Draw active line to mouse
+    ctx.lineTo(obj.currentPos.x, obj.currentPos.y) 
   }
   if (obj.closed) ctx.closePath()
 
@@ -95,7 +91,6 @@ function drawPoly(ctx, obj) {
   }
   ctx.stroke()
 
-  // Draw vertices if currently building the shape
   if (!obj.closed) {
     obj.points.forEach(p => {
       ctx.beginPath()
@@ -293,16 +288,32 @@ function hitTest(ctx, pos, obj) {
 export default function SiteSketcher() {
   const canvasRef = useRef(null)
   
+  // Responsive Canvas State (THEME FIX: Dynamic Virtual Height)
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const vw = 1000
+  const vh = isMobile ? 1000 : 500
+
   // UI State
   const [activeTool, setActiveTool] = useState('rect')
   const [pitch, setPitch] = useState('')
   const [compassAngle, setCompassAngle] = useState(0)
   const [checklist, setChecklist] = useState(() => Object.fromEntries(CHECKLIST.map(c => [c, false])))
 
+  // Validation State
+  const [showWarning, setShowWarning] = useState(false)
+  const [pendingAction, setPendingAction] = useState(null) // 'save' | 'export'
+
   // Sub-tool State
   const [dormerType, setDormerType] = useState('gable')
   const [textProps, setTextProps] = useState({ size: 20, color: '#b45309', bg: true })
-  const [roofColor, setRoofColor] = useState('#1e3a8a') // NEW: Roof color state
+  const [roofColor, setRoofColor] = useState('#1e3a8a') 
 
   // Mutable refs for canvas math
   const sketchObjectsRef = useRef([])
@@ -311,7 +322,7 @@ export default function SiteSketcher() {
   const isDrawingRef = useRef(false)
   const tempObjRef = useRef(null)
   const movingObjIndexRef = useRef(-1)
-  const dragOffsetRef = useRef({ x: 0, y: 0, x2: 0, y2: 0, points: [] }) // Points added for poly drag
+  const dragOffsetRef = useRef({ x: 0, y: 0, x2: 0, y2: 0, points: [] }) 
   
   // Sync state to refs for event listeners
   const activeToolRef = useRef(activeTool)
@@ -328,7 +339,6 @@ export default function SiteSketcher() {
   useEffect(() => { textPropsRef.current = textProps }, [textProps])
   useEffect(() => { roofColorRef.current = roofColor }, [roofColor])
 
-  // Smart Checklist Evaluator
   const evaluateSmartChecklist = useCallback(() => {
     setChecklist(prev => {
       const next = { ...prev }
@@ -340,7 +350,6 @@ export default function SiteSketcher() {
       const obstacles = objs.filter(o => o.type === 'circle' || o.type === 'dormer')
 
       if (faces.length > 0) next['Roof faces drawn'] = true
-      // Smart Rule: Check direction only if we have at least 1 arrow per face drawn
       if (faces.length > 0 && arrows.length >= faces.length) next['Direction added'] = true
       
       if (texts.length > 0) next['Lengths added'] = true
@@ -352,25 +361,25 @@ export default function SiteSketcher() {
     })
   }, [])
 
-  // Initial DPI Scaling setup
+  // Canvas Initialization (now depends on dynamic vw/vh)
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     const dpr = window.devicePixelRatio || 1
     
-    canvas.width = VIRTUAL_W * dpr
-    canvas.height = VIRTUAL_H * dpr
+    canvas.width = vw * dpr
+    canvas.height = vh * dpr
     ctx.scale(dpr, dpr)
     
     redraw()
-  }, [])
+  }, [vw, vh])
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, VIRTUAL_W, VIRTUAL_H)
+    ctx.clearRect(0, 0, vw, vh)
 
     sketchObjectsRef.current.forEach(obj => {
       if (obj.type === 'rect') drawRect(ctx, obj)
@@ -392,9 +401,9 @@ export default function SiteSketcher() {
       if (tmp.type === 'arrow') drawArrow(ctx, tmp)
     }
 
-    drawCompass(ctx, VIRTUAL_W, VIRTUAL_H, compassAngleRef.current)
-    drawPitchLabel(ctx, VIRTUAL_H, pitchRef.current)
-  }, [])
+    drawCompass(ctx, vw, vh, compassAngleRef.current)
+    drawPitchLabel(ctx, vh, pitchRef.current)
+  }, [vw, vh])
 
   const saveState = useCallback(() => {
     historyStackRef.current = historyStackRef.current.slice(0, currentStepRef.current + 1)
@@ -403,16 +412,48 @@ export default function SiteSketcher() {
     evaluateSmartChecklist()
   }, [evaluateSmartChecklist])
 
-  // Local Save / Load
-  const saveLocally = () => {
-    const data = {
-      objects: sketchObjectsRef.current,
-      pitch,
-      compassAngle,
-      checklist
-    }
+  // --- ACTIONS WITH SMART VALIDATION ---
+  const executeSaveLocally = () => {
+    const data = { objects: sketchObjectsRef.current, pitch, compassAngle, checklist }
     localStorage.setItem('stardustSiteSketch', JSON.stringify(data))
     alert('Sketch saved locally!')
+  }
+
+  const executeExportPNG = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const date = new Date().toISOString().slice(0, 10)
+    const a = document.createElement('a')
+    a.download = `stardust-sketch-${date}.png`
+    a.href = canvas.toDataURL('image/png')
+    a.click()
+  }
+
+  const handleAttemptSave = () => {
+    const isComplete = Object.values(checklist).every(v => v === true)
+    if (isComplete) {
+      executeSaveLocally()
+    } else {
+      setPendingAction('save')
+      setShowWarning(true)
+    }
+  }
+
+  const handleAttemptExport = () => {
+    const isComplete = Object.values(checklist).every(v => v === true)
+    if (isComplete) {
+      executeExportPNG()
+    } else {
+      setPendingAction('export')
+      setShowWarning(true)
+    }
+  }
+
+  const confirmAction = () => {
+    setShowWarning(false)
+    if (pendingAction === 'save') executeSaveLocally()
+    if (pendingAction === 'export') executeExportPNG()
+    setPendingAction(null)
   }
 
   const loadLocally = () => {
@@ -457,17 +498,6 @@ export default function SiteSketcher() {
     }
   }, [saveState, redraw])
 
-  const exportPNG = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const date = new Date().toISOString().slice(0, 10)
-    const a = document.createElement('a')
-    a.download = `stardust-sketch-${date}.png`
-    a.href = canvas.toDataURL('image/png')
-    a.click()
-  }, [])
-
-  // Checkbox toggle logic
   const toggleCheck = (item) => {
     setChecklist(prev => ({ ...prev, [item]: !prev[item] }))
   }
@@ -486,7 +516,7 @@ export default function SiteSketcher() {
 
     function startAction(e) {
       e.preventDefault()
-      const pos = getMousePos(canvas, e)
+      const pos = getMousePos(canvas, e, vw, vh)
       const sx = snap(pos.x)
       const sy = snap(pos.y)
       const tool = activeToolRef.current
@@ -518,13 +548,10 @@ export default function SiteSketcher() {
         return
       }
 
-      // Special handling for Polygon
       if (tool === 'poly') {
         if (!tempObjRef.current || tempObjRef.current.type !== 'poly') {
-          // Start new poly
           tempObjRef.current = { type: 'poly', points: [{ x: sx, y: sy }], color: roofColorRef.current, closed: false }
         } else {
-          // Check if close to start point to close the loop
           const startPt = tempObjRef.current.points[0]
           const dist = Math.sqrt(Math.pow(startPt.x - sx, 2) + Math.pow(startPt.y - sy, 2))
           
@@ -534,7 +561,6 @@ export default function SiteSketcher() {
             tempObjRef.current = null
             saveState()
           } else {
-            // Add point
             tempObjRef.current.points.push({ x: sx, y: sy })
           }
         }
@@ -574,7 +600,7 @@ export default function SiteSketcher() {
     }
 
     function moveAction(e) {
-      const pos = getMousePos(canvas, e)
+      const pos = getMousePos(canvas, e, vw, vh)
       const tool = activeToolRef.current
       const cx = tool === 'circle' || tool === 'poly' ? pos.x : snap(pos.x)
       const cy = tool === 'circle' || tool === 'poly' ? pos.y : snap(pos.y)
@@ -616,7 +642,7 @@ export default function SiteSketcher() {
     }
 
     function endAction() {
-      if (activeToolRef.current === 'poly') return // Polys are closed by clicking the start point
+      if (activeToolRef.current === 'poly') return 
 
       let stateChanged = false
       const tool = activeToolRef.current
@@ -659,178 +685,213 @@ export default function SiteSketcher() {
       canvas.removeEventListener('touchmove', moveAction)
       canvas.removeEventListener('touchend', endAction)
     }
-  }, [saveState, redraw])
+  }, [saveState, redraw, vw, vh])
 
   function toolBtnClass(id) {
-    const baseClass = "px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 transform active:scale-95 hover:-translate-y-1 hover:shadow-md "
+    const baseClass = "px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 transform active:scale-95 hover:-translate-y-1 hover:shadow-md flex items-center justify-center "
     if (id === activeTool) {
-      if (id === 'text') return baseClass + 'bg-yellow-500 text-yellow-900 border border-yellow-400 shadow-sm'
-      if (id === 'erase') return baseClass + 'bg-red-600 text-white border border-red-700 shadow-sm'
-      return baseClass + 'bg-blue-900 text-white border border-blue-900 shadow-sm'
+      if (id === 'text') return baseClass + 'bg-yellow-500 md:bg-yellow-500 text-yellow-900 border border-yellow-400 shadow-sm'
+      if (id === 'erase') return baseClass + 'bg-red-500 md:bg-red-600 text-white border border-red-500 md:border-red-700 shadow-sm'
+      return baseClass + 'bg-blue-600 md:bg-blue-900 text-white border border-blue-500 md:border-blue-900 shadow-sm'
     }
-    if (id === 'text') return baseClass + 'bg-yellow-100 border border-yellow-300 text-yellow-800 hover:bg-yellow-200'
-    if (id === 'erase') return baseClass + 'bg-white border border-slate-200 text-red-500 hover:bg-red-50 hover:border-red-300'
-    return baseClass + 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+    if (id === 'text') return baseClass + 'bg-yellow-900/20 md:bg-yellow-100 border border-yellow-700/50 md:border-yellow-300 text-yellow-400 md:text-yellow-800 hover:bg-yellow-900/40 md:hover:bg-yellow-200'
+    if (id === 'erase') return baseClass + 'bg-slate-900 md:bg-white border border-slate-700 md:border-slate-200 text-red-400 md:text-red-500 hover:bg-slate-800 md:hover:bg-red-50 hover:border-red-500/50 md:hover:border-red-300'
+    return baseClass + 'bg-slate-900 md:bg-white border border-slate-700 md:border-slate-200 text-slate-300 md:text-slate-600 hover:bg-slate-800 md:hover:bg-slate-100'
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-12">
-      <div className="flex justify-between items-end mb-6">
-        <div>
-          <h2 className="text-4xl font-black text-blue-900 mb-2 animate-fade-in-up">Site Sketcher</h2>
-          <p className="text-slate-500 italic animate-fade-in-up delay-100">Draft roof planes, vents, and dimensions for the design team.</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={saveLocally} className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 hover:bg-slate-50 flex items-center gap-2 shadow-sm">
-            <Save size={16} /> Save Sketch
-          </button>
-          <button onClick={loadLocally} className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 hover:bg-slate-50 flex items-center gap-2 shadow-sm">
-            <FolderOpen size={16} /> Load
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 animate-fade-in-up delay-200">
-        
-        {/* Main Toolbar */}
-        <div className="flex flex-wrap gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 items-center justify-between">
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs font-black uppercase text-slate-400 self-center mr-1">Draw:</span>
-            {TOOLS.filter(t => t.group === 'draw').map(({ id, label, Icon }) => (
-              <button key={id} onClick={() => setActiveTool(id)} className={toolBtnClass(id)}>
-                <Icon size={14} className="inline mr-1" />{label}
-              </button>
-            ))}
-
-            <div className="w-px bg-slate-300 mx-1 hidden md:block h-8" />
-
-            <span className="text-xs font-black uppercase text-slate-400 self-center mx-1">Edit:</span>
-            {TOOLS.filter(t => t.group === 'edit').map(({ id, Icon }) => (
-              <button key={id} onClick={() => setActiveTool(id)} className={toolBtnClass(id)} title={id === 'move' ? 'Move Object' : 'Erase Object'}>
-                <Icon size={14} />
-              </button>
-            ))}
-          </div>
-
-          <div className="flex gap-2 flex-wrap items-center">
-            <select
-              value={pitch}
-              onChange={e => setPitch(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 bg-white outline-none focus:border-yellow-400 transition-colors cursor-pointer hover:bg-slate-50"
-              title="Roof Pitch"
-            >
-              {PITCH_OPTIONS.map(p => (
-                <option key={p} value={p}>{p || 'Pitch…'}</option>
+    <div className="fixed inset-0 overflow-y-auto bg-slate-950 text-slate-300 md:relative md:inset-auto md:bg-slate-50 md:text-slate-800 font-sans transition-colors duration-300">
+      
+      {/* WARNING MODAL */}
+      {showWarning && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 md:bg-white rounded-3xl shadow-2xl border border-slate-800 md:border-slate-200 p-6 w-full max-w-md animate-fade-in-up">
+            <div className="flex items-center gap-3 mb-4 border-b border-slate-800 md:border-slate-100 pb-4">
+              <AlertTriangle className="text-yellow-500" size={24} />
+              <h3 className="text-lg font-black text-white md:text-blue-900 uppercase tracking-widest">Missing Elements</h3>
+            </div>
+            <p className="text-sm text-slate-400 md:text-slate-500 mb-6">Your sketch is missing some standard requirements. You can fix them or proceed anyway.</p>
+            
+            <div className="space-y-3 mb-8">
+              {CHECKLIST.map(item => (
+                <div key={item} className="flex items-center justify-between text-sm">
+                  <span className={checklist[item] ? 'text-slate-600 md:text-slate-400 line-through' : 'text-white md:text-slate-800 font-bold'}>{item}</span>
+                  {checklist[item] ? <CheckCircle2 size={16} className="text-green-500" /> : <XCircle size={16} className="text-red-500" />}
+                </div>
               ))}
-            </select>
-            <button onClick={undo} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-md hover:bg-slate-100">
-              <Undo2 size={14} />
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button onClick={() => setShowWarning(false)} className="flex-1 bg-blue-600 md:bg-blue-900 text-white font-bold py-3.5 rounded-xl hover:bg-blue-500 transition-colors shadow-lg">
+                Back to Edit
+              </button>
+              <button onClick={confirmAction} className="flex-1 bg-slate-800 md:bg-slate-100 text-slate-300 md:text-slate-600 font-bold py-3.5 rounded-xl hover:bg-red-900/50 hover:text-red-400 md:hover:bg-red-50 md:hover:text-red-500 transition-colors border border-slate-700 md:border-slate-200">
+                {pendingAction === 'save' ? 'Save Anyway' : 'Download Anyway'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="w-full min-h-screen p-4 md:p-8 lg:p-12 pb-32 md:max-w-7xl md:mx-0">
+        
+        <div className="flex flex-col md:flex-row justify-between items-center md:items-end mb-6 gap-4 animate-fade-in-up">
+          <div className="text-center md:text-left">
+            <h2 className="text-4xl font-black text-white md:text-blue-900 mb-2">Site Sketcher</h2>
+            <p className="text-slate-400 md:text-slate-500 italic">Draft roof planes, vents, and dimensions for the design team.</p>
+          </div>
+          <div className="flex gap-2 w-full md:w-auto">
+            <button onClick={handleAttemptSave} className="flex-1 md:flex-none bg-slate-900 md:bg-white border border-slate-700 md:border-slate-200 text-white md:text-slate-700 px-4 py-2.5 md:py-2 rounded-lg text-sm font-bold transition-all duration-300 hover:bg-slate-800 md:hover:bg-slate-50 flex items-center justify-center gap-2 shadow-sm">
+              <Save size={16} /> Save Sketch
             </button>
-            <button onClick={redo} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-md hover:bg-slate-100">
-              <Redo2 size={14} />
-            </button>
-            <button onClick={clearSketch} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-md hover:bg-red-100">
-              <Trash2 size={14} />
-            </button>
-            <button onClick={exportPNG} className="bg-blue-900 border border-blue-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/30 hover:bg-blue-800 flex items-center gap-1">
-              <Download size={14} /> PNG
+            <button onClick={loadLocally} className="flex-1 md:flex-none bg-slate-900 md:bg-white border border-slate-700 md:border-slate-200 text-white md:text-slate-700 px-4 py-2.5 md:py-2 rounded-lg text-sm font-bold transition-all duration-300 hover:bg-slate-800 md:hover:bg-slate-50 flex items-center justify-center gap-2 shadow-sm">
+              <FolderOpen size={16} /> Load
             </button>
           </div>
         </div>
 
-        {/* Dynamic Sub-Toolbars */}
-        {(activeTool === 'rect' || activeTool === 'poly') && (
-          <div className="flex items-center gap-3 mb-4 bg-blue-50 text-blue-900 p-2 px-4 rounded-lg border border-blue-200 animate-fade-in-up">
-            <Palette size={16} />
-            <span className="text-xs font-bold uppercase tracking-wider">Roof Color:</span>
-            <input 
-              type="color" 
-              value={roofColor} 
-              onChange={e => setRoofColor(e.target.value)} 
-              className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0" 
-            />
-            {activeTool === 'poly' && (
-              <span className="text-xs text-blue-700 italic ml-auto hidden sm:block">Click to add points. Click your starting point to close.</span>
-            )}
-          </div>
-        )}
+        <div className="bg-slate-900 md:bg-white p-4 md:p-6 rounded-3xl shadow-lg border border-slate-800 md:border-slate-200 animate-fade-in-up delay-200">
+          
+          <div className="flex flex-col sm:flex-row gap-4 mb-4 bg-slate-950 md:bg-slate-50 p-3 rounded-xl border border-slate-800 md:border-slate-100 items-start sm:items-center justify-between">
+            <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
+              <span className="text-xs font-black uppercase text-slate-500 md:text-slate-400 self-center mr-1">Draw:</span>
+              {TOOLS.filter(t => t.group === 'draw').map(({ id, label, Icon }) => (
+                <button key={id} onClick={() => setActiveTool(id)} className={toolBtnClass(id)}>
+                  <Icon size={14} className="inline sm:mr-1" /><span className="hidden sm:inline">{label}</span>
+                </button>
+              ))}
 
-        {activeTool === 'dormer' && (
-          <div className="flex items-center gap-3 mb-4 bg-green-50 text-green-900 p-2 px-4 rounded-lg border border-green-200 animate-fade-in-up">
-            <Home size={16} />
-            <span className="text-xs font-bold uppercase tracking-wider">Dormer Style:</span>
-            <div className="flex gap-2 bg-white rounded-md p-1 border border-green-200 shadow-sm">
-              <button onClick={() => setDormerType('gable')} className={`px-4 py-1 rounded text-xs font-bold transition-colors ${dormerType === 'gable' ? 'bg-green-600 text-white' : 'text-green-700 hover:bg-green-100'}`}>Gable</button>
-              <button onClick={() => setDormerType('hip')} className={`px-4 py-1 rounded text-xs font-bold transition-colors ${dormerType === 'hip' ? 'bg-green-600 text-white' : 'text-green-700 hover:bg-green-100'}`}>Hip</button>
-            </div>
-            <span className="text-xs text-green-700 italic ml-auto hidden sm:block">Click and drag to place.</span>
-          </div>
-        )}
+              <div className="w-px bg-slate-800 md:bg-slate-300 mx-1 hidden sm:block h-8" />
 
-        {activeTool === 'text' && (
-          <div className="flex items-center gap-4 mb-4 bg-yellow-50 text-yellow-900 p-2 px-4 rounded-lg border border-yellow-200 animate-fade-in-up">
-            <Palette size={16} />
-            <span className="text-xs font-bold uppercase tracking-wider">Text Options:</span>
-            
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium">Color:</label>
-              <input type="color" value={textProps.color} onChange={e => setTextProps({...textProps, color: e.target.value})} className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0" />
+              <span className="text-xs font-black uppercase text-slate-500 md:text-slate-400 self-center mx-1 mt-2 sm:mt-0 w-full sm:w-auto hidden sm:block">Edit:</span>
+              {TOOLS.filter(t => t.group === 'edit').map(({ id, Icon }) => (
+                <button key={id} onClick={() => setActiveTool(id)} className={toolBtnClass(id)} title={id === 'move' ? 'Move Object' : 'Erase Object'}>
+                  <Icon size={14} />
+                </button>
+              ))}
             </div>
-            
-            <div className="flex items-center gap-2 border-l border-yellow-300 pl-4">
-              <label className="text-xs font-medium">Size:</label>
-              <select value={textProps.size} onChange={e => setTextProps({...textProps, size: parseInt(e.target.value)})} className="bg-white border border-yellow-300 rounded text-xs p-1 outline-none font-bold">
-                <option value={14}>Small</option>
-                <option value={20}>Medium</option>
-                <option value={28}>Large</option>
+
+            <div className="flex gap-2 flex-wrap items-center w-full sm:w-auto justify-between sm:justify-start pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800 md:border-transparent">
+              <select
+                value={pitch}
+                onChange={e => setPitch(e.target.value)}
+                className="border border-slate-700 md:border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-white md:text-slate-700 bg-slate-900 md:bg-white outline-none focus:border-yellow-500 md:focus:border-yellow-400 transition-colors cursor-pointer md:hover:bg-slate-50"
+                title="Roof Pitch"
+              >
+                {PITCH_OPTIONS.map(p => (
+                  <option key={p} value={p}>{p || 'Pitch…'}</option>
+                ))}
               </select>
+              <div className="flex gap-2">
+                <button onClick={undo} className="bg-slate-900 md:bg-white border border-slate-700 md:border-slate-200 text-slate-300 md:text-slate-600 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-md hover:bg-slate-800 md:hover:bg-slate-100">
+                  <Undo2 size={14} />
+                </button>
+                <button onClick={redo} className="bg-slate-900 md:bg-white border border-slate-700 md:border-slate-200 text-slate-300 md:text-slate-600 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-md hover:bg-slate-800 md:hover:bg-slate-100">
+                  <Redo2 size={14} />
+                </button>
+                <button onClick={clearSketch} className="bg-red-900/30 md:bg-red-50 border border-red-800 md:border-red-200 text-red-400 md:text-red-600 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-md hover:bg-red-900/50 md:hover:bg-red-100">
+                  <Trash2 size={14} />
+                </button>
+                <button onClick={handleAttemptExport} className="bg-blue-600 md:bg-blue-900 border border-blue-500 md:border-blue-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-1 hover:shadow-lg md:hover:shadow-blue-500/30 hover:bg-blue-500 md:hover:bg-blue-800 flex items-center gap-1">
+                  <Download size={14} /> <span className="hidden sm:inline">PNG</span>
+                </button>
+              </div>
             </div>
-
-            <label className="flex items-center gap-2 border-l border-yellow-300 pl-4 text-xs font-medium cursor-pointer">
-              <input type="checkbox" checked={textProps.bg} onChange={e => setTextProps({...textProps, bg: e.target.checked})} className="accent-yellow-600 w-4 h-4" />
-              White Background
-            </label>
           </div>
-        )}
 
-        {/* Canvas Area */}
-        <div className="border-2 border-slate-300 rounded-xl overflow-hidden blueprint-bg relative shadow-inner transition-all duration-500 hover:border-blue-400 hover:shadow-2xl">
-          <canvas
-            ref={canvasRef}
-            style={{ width: '100%', aspectRatio: '2/1' }}
-            className="cursor-crosshair touch-none"
-          />
-          <div className="absolute bottom-4 right-20 bg-white/90 p-2 rounded-lg shadow-md border border-slate-200 flex items-center gap-2 backdrop-blur-sm transition-all duration-300 hover:shadow-lg">
-            <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Compass °:</label>
-            <input
-              type="number"
-              value={compassAngle}
-              onChange={e => setCompassAngle(parseFloat(e.target.value) || 0)}
-              className="w-16 border border-slate-300 rounded px-2 py-1 text-sm font-bold text-blue-900 outline-none focus:border-yellow-500 transition-colors"
-            />
-          </div>
-        </div>
+          {(activeTool === 'rect' || activeTool === 'poly') && (
+            <div className="flex items-center gap-3 mb-4 bg-blue-900/20 md:bg-blue-50 text-blue-400 md:text-blue-900 p-2 px-4 rounded-lg border border-blue-800/50 md:border-blue-200 animate-fade-in-up">
+              <Palette size={16} />
+              <span className="text-xs font-bold uppercase tracking-wider">Roof Color:</span>
+              <input 
+                type="color" 
+                value={roofColor} 
+                onChange={e => setRoofColor(e.target.value)} 
+                className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0" 
+              />
+              {activeTool === 'poly' && (
+                <span className="text-xs text-blue-500 md:text-blue-700 italic ml-auto hidden sm:block">Click to add points. Click your starting point to close.</span>
+              )}
+            </div>
+          )}
 
-        {/* Validation Checklist */}
-        <div className="mt-6 border-t border-slate-100 pt-6 animate-fade-in-up delay-300">
-          <h4 className="font-black text-sm uppercase tracking-widest text-blue-900 mb-4 flex items-center gap-2">
-            <ClipboardCheck size={16} className="text-green-500" /> Validation Checklist
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {CHECKLIST.map(item => (
-              <label key={item} className={`flex items-center gap-2 text-sm font-medium cursor-pointer transition-all duration-300 hover:translate-x-1 group ${checklist[item] ? 'text-green-700' : 'text-slate-600 hover:text-blue-900'}`}>
-                <input
-                  type="checkbox"
-                  checked={checklist[item]}
-                  onChange={() => toggleCheck(item)}
-                  className="w-5 h-5 accent-green-500 rounded cursor-pointer transition-transform group-hover:scale-110"
-                />
-                {item}
+          {activeTool === 'dormer' && (
+            <div className="flex items-center gap-3 mb-4 bg-green-900/20 md:bg-green-50 text-green-400 md:text-green-900 p-2 px-4 rounded-lg border border-green-800/50 md:border-green-200 animate-fade-in-up">
+              <Home size={16} />
+              <span className="text-xs font-bold uppercase tracking-wider">Dormer Style:</span>
+              <div className="flex gap-2 bg-slate-900 md:bg-white rounded-md p-1 border border-green-800/50 md:border-green-200 shadow-sm">
+                <button onClick={() => setDormerType('gable')} className={`px-4 py-1 rounded text-xs font-bold transition-colors ${dormerType === 'gable' ? 'bg-green-600 text-white' : 'text-green-500 md:text-green-700 hover:bg-green-900/50 md:hover:bg-green-100'}`}>Gable</button>
+                <button onClick={() => setDormerType('hip')} className={`px-4 py-1 rounded text-xs font-bold transition-colors ${dormerType === 'hip' ? 'bg-green-600 text-white' : 'text-green-500 md:text-green-700 hover:bg-green-900/50 md:hover:bg-green-100'}`}>Hip</button>
+              </div>
+              <span className="text-xs text-green-500 md:text-green-700 italic ml-auto hidden sm:block">Click and drag to place.</span>
+            </div>
+          )}
+
+          {activeTool === 'text' && (
+            <div className="flex flex-wrap items-center gap-4 mb-4 bg-yellow-900/20 md:bg-yellow-50 text-yellow-400 md:text-yellow-900 p-2 px-4 rounded-lg border border-yellow-800/50 md:border-yellow-200 animate-fade-in-up">
+              <Palette size={16} />
+              <span className="text-xs font-bold uppercase tracking-wider">Text Options:</span>
+              
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium">Color:</label>
+                <input type="color" value={textProps.color} onChange={e => setTextProps({...textProps, color: e.target.value})} className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0" />
+              </div>
+              
+              <div className="flex items-center gap-2 border-l border-yellow-700/50 md:border-yellow-300 pl-4">
+                <label className="text-xs font-medium">Size:</label>
+                <select value={textProps.size} onChange={e => setTextProps({...textProps, size: parseInt(e.target.value)})} className="bg-slate-900 md:bg-white text-white md:text-slate-900 border border-yellow-700/50 md:border-yellow-300 rounded text-xs p-1 outline-none font-bold">
+                  <option value={14}>Small</option>
+                  <option value={20}>Medium</option>
+                  <option value={28}>Large</option>
+                </select>
+              </div>
+
+              <label className="flex items-center gap-2 border-l border-yellow-700/50 md:border-yellow-300 pl-4 text-xs font-medium cursor-pointer">
+                <input type="checkbox" checked={textProps.bg} onChange={e => setTextProps({...textProps, bg: e.target.checked})} className="accent-yellow-500 md:accent-yellow-600 w-4 h-4" />
+                White Background
               </label>
-            ))}
-          </div>
-        </div>
+            </div>
+          )}
 
+          {/* THEME FIX: aspect-square dynamically changes to aspect-[2/1] on desktop, no distortion because vh maps to screen */}
+          <div className="w-full aspect-square md:aspect-[2/1] border-2 border-slate-700 md:border-slate-300 rounded-xl overflow-hidden bg-white relative shadow-inner transition-all duration-500 hover:border-blue-500 md:hover:border-blue-400 md:hover:shadow-2xl">
+            <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: 'radial-gradient(#1e3a8a 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+            <canvas
+              ref={canvasRef}
+              style={{ width: '100%', height: '100%' }}
+              className="cursor-crosshair touch-none relative z-10"
+            />
+            <div className="absolute bottom-4 right-4 md:right-20 bg-slate-900/90 md:bg-white/90 p-2 rounded-lg shadow-lg md:shadow-md border border-slate-700 md:border-slate-200 flex items-center gap-2 backdrop-blur-sm transition-all duration-300 hover:shadow-xl z-20">
+              <label className="text-[10px] font-black uppercase text-slate-400 md:text-slate-500 tracking-wider">Compass °:</label>
+              <input
+                type="number"
+                value={compassAngle}
+                onChange={e => setCompassAngle(parseFloat(e.target.value) || 0)}
+                className="w-16 border border-slate-700 md:border-slate-300 rounded px-2 py-1 text-sm font-bold text-white md:text-blue-900 bg-slate-800 md:bg-white outline-none focus:border-yellow-500 transition-colors"
+              />
+            </div>
+          </div>
+
+          <div className="hidden md:block mt-6 border-t border-slate-800 md:border-slate-100 pt-6 animate-fade-in-up delay-300">
+            <h4 className="font-black text-sm uppercase tracking-widest text-white md:text-blue-900 mb-4 flex items-center gap-2">
+              <ClipboardCheck size={16} className="text-green-500" /> Validation Checklist
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {CHECKLIST.map(item => (
+                <label key={item} className={`flex items-center gap-2 text-sm font-medium cursor-pointer transition-all duration-300 hover:translate-x-1 group ${checklist[item] ? 'text-green-400 md:text-green-700' : 'text-slate-400 md:text-slate-600 hover:text-white md:hover:text-blue-900'}`}>
+                  <input
+                    type="checkbox"
+                    checked={checklist[item]}
+                    onChange={() => toggleCheck(item)}
+                    className="w-5 h-5 accent-green-500 rounded cursor-pointer transition-transform group-hover:scale-110"
+                  />
+                  {item}
+                </label>
+              ))}
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   )
