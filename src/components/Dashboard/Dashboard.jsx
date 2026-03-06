@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { useGoals } from '../../hooks/useGoals'
 import { useStreak } from '../../hooks/useStreak'
-import { Target, TrendingUp, Zap, Flame, Award, Calculator, UserPlus, FileSignature, BookOpen, Phone, CheckCircle, FileText } from 'lucide-react'
+import { 
+  Target, TrendingUp, Zap, Flame, Award, Calculator, UserPlus, 
+  FileSignature, BookOpen, Phone, CheckCircle, FileText, ChevronRight, 
+  DollarSign, Users, Sun, Trophy, Plus, Mic, MessageSquare, Shield, ArrowLeft 
+} from 'lucide-react'
 
 const MAX_DEALS = 10
 const GOAL_DEALS = 7
@@ -13,7 +17,6 @@ const CHECKPOINTS = [
   { deals: 7, pct: 70, label: '7 Deals', reward: '$1.5K Bonus', icon: 'fas fa-gem', reachedColor: 'text-orange-500' },
 ]
 
-// --- CUSTOM SVG DONUT CHART ---
 function CircularProgress({ percentage, colorClass, strokeColor, label }) {
   const radius = 15.9155; 
   const dash = `${percentage}, 100`;
@@ -32,12 +35,16 @@ function CircularProgress({ percentage, colorClass, strokeColor, label }) {
 }
 
 export default function Dashboard() {
-  const { user, activePeriod, setActivePeriod, profile } = useAppStore()
+  const { user, activePeriod, setActivePeriod, profile, setActiveSection } = useAppStore()
   const { goals, load: loadGoals, adjust } = useGoals(user?.id, activePeriod)
   const { streak, load: loadStreak, bump } = useStreak(user?.id)
   
   const [systemSize, setSystemSize] = useState('')
   const [commRate, setCommRate] = useState('')
+  
+  // FAB State Management
+  const [isFabOpen, setIsFabOpen] = useState(false)
+  const [fabMode, setFabMode] = useState('main') // 'main' | 'training'
 
   useEffect(() => { 
     loadGoals(); 
@@ -53,7 +60,31 @@ export default function Dashboard() {
     await bump()
   }
 
-  // --- Analytics Calculations ---
+  const triggerHaptic = () => {
+    if (typeof window !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(15);
+    }
+  }
+
+  // Routing Handler
+  const handleRoute = (routeId) => {
+    triggerHaptic();
+    setIsFabOpen(false);
+    // Reset FAB menu after it closes so it's on 'main' next time
+    setTimeout(() => setFabMode('main'), 300);
+    setActiveSection(routeId);
+  }
+
+  const handleFabToggle = () => {
+    triggerHaptic();
+    if (isFabOpen) {
+      setIsFabOpen(false);
+      setTimeout(() => setFabMode('main'), 300);
+    } else {
+      setIsFabOpen(true);
+    }
+  }
+
   const appRate = goals.knocks > 0 ? parseFloat(((goals.apps / goals.knocks) * 100).toFixed(1)) : 0
   const closeRate = goals.apps > 0 ? parseFloat(((goals.deals / goals.apps) * 100).toFixed(1)) : 0
   const dealsNeeded = Math.max(0, GOAL_DEALS - goals.deals)
@@ -68,7 +99,7 @@ export default function Dashboard() {
   const appBarWidth = Math.max((goals.apps / maxFunnel) * 100, 2) 
   const dealBarWidth = Math.max((goals.deals / maxFunnel) * 100, 2)
 
-  // --- Dynamic Insights ---
+  // --- DESKTOP INSIGHTS ---
   let insightText = 'Log some doors to start predicting your commission pipeline.'
   let insightClass = 'text-xs mt-4 text-blue-800 font-medium text-center italic bg-white p-3 rounded-xl shadow-sm border border-blue-100 flex items-center justify-center gap-2'
   let InsightIcon = Zap
@@ -77,19 +108,25 @@ export default function Dashboard() {
     insightText = 'Goal crushed! Everything from here is pure gravy.'; 
     insightClass = 'text-xs mt-4 text-green-700 font-bold text-center bg-green-50 p-3 rounded-xl shadow-sm border border-green-200 flex items-center justify-center gap-2' 
     InsightIcon = Award
-  } else if (goals.knocks === 0) { 
-  } else if (appRate < 5) { 
+  } else if (appRate < 5 && goals.knocks > 0) { 
     insightText = "Tip: Your Appt rate is below 5%. Spend 10 mins in the Script Builder on your Hook."; 
     insightClass = 'text-xs mt-4 text-orange-700 font-medium text-center bg-orange-50 p-3 rounded-xl shadow-sm border border-orange-200 flex items-center justify-center gap-2' 
     InsightIcon = TrendingUp
-  } else if (closeRate < 20 && goals.apps > 0) { 
-    insightText = "Tip: You're getting apps, but closing is tough. Drill the Objection Buster."; 
-    insightClass = 'text-xs mt-4 text-orange-700 font-medium text-center bg-orange-50 p-3 rounded-xl shadow-sm border border-orange-200 flex items-center justify-center gap-2' 
-    InsightIcon = Target
-  } else { 
-    insightText = `You are on pace! Keep grinding. Just ${doorsNeeded} doors to hit President's Club.`; 
-    insightClass = 'text-xs mt-4 text-green-700 font-bold text-center bg-green-50 p-3 rounded-xl shadow-sm border border-green-200 flex items-center justify-center gap-2' 
-    InsightIcon = Zap
+  }
+
+  // --- MOBILE GAMIFICATION THEMES ---
+  let mobileThemeHeader = 'from-slate-900 to-blue-950'
+  let mobileThemeCardBorder = 'border-slate-800'
+  let mobileIconGlow = 'bg-blue-500/10'
+
+  if (dealsNeeded === 0) {
+    mobileThemeHeader = 'from-slate-900 to-yellow-900'
+    mobileThemeCardBorder = 'border-yellow-600/30 shadow-[0_0_15px_rgba(202,138,4,0.1)]'
+    mobileIconGlow = 'bg-yellow-500/20'
+  } else if (appRate < 5 && goals.knocks > 0) {
+    mobileThemeHeader = 'from-slate-900 to-red-950'
+    mobileThemeCardBorder = 'border-red-900/50'
+    mobileIconGlow = 'bg-red-500/10'
   }
 
   return (
@@ -98,95 +135,163 @@ export default function Dashboard() {
       {/* ========================================= */}
       {/* MOBILE ONLY VIEW                          */}
       {/* ========================================= */}
-      <div className="block md:hidden bg-slate-50 min-h-screen pb-24">
-        <div className="bg-slate-900 pt-8 pb-12 px-5 rounded-b-[2.5rem] shadow-lg relative z-10">
-          <p className="text-sm text-slate-400 font-medium">Welcome back,</p>
-          <h2 className="text-3xl font-black text-white tracking-tight">{profile?.full_name?.split(' ')[0] || 'Mason'}</h2>
-          <div className="inline-flex items-center gap-2 mt-2 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700">
-            <i className="fas fa-bolt text-yellow-400 text-[10px]"></i>
-            <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Stardust Solar • Temiskaming</p>
+      <div className="block md:hidden bg-slate-950 min-h-screen pb-6 font-sans overflow-hidden text-slate-200">
+        
+        {/* Dynamic Gamified Header */}
+        <div className={`bg-gradient-to-b ${mobileThemeHeader} pt-8 pb-12 px-5 rounded-b-[2.5rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] relative z-10 transition-colors duration-1000 animate-fade-in-up`}>
+          <div className={`absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 rounded-full ${mobileIconGlow} blur-3xl pointer-events-none transition-colors duration-1000`}></div>
+          <div className="relative z-10">
+            <p className="text-xs text-slate-400 font-medium tracking-wide">Welcome back,</p>
+            <h2 className="text-3xl font-black text-white tracking-tight mt-0.5">{profile?.full_name?.split(' ')[0] || 'Mason'}</h2>
+            <div className="inline-flex items-center gap-2 mt-3 bg-white/5 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 shadow-sm">
+              <Zap size={10} className="text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)] fill-current" />
+              <p className="text-[9px] font-bold text-yellow-400 uppercase tracking-widest">Stardust Solar • Temiskaming</p>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 px-5 -mt-8 relative z-20">
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
-            <i className="fas fa-chart-line text-blue-500 mb-2 text-lg"></i>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Revenue</p>
-            <p className="text-xl font-black text-slate-800 tracking-tighter">$250K</p>
+        {/* Floating Metrics Grid */}
+        <div className="grid grid-cols-2 gap-3 px-5 -mt-6 relative z-20">
+          <div className={`bg-slate-900 p-3.5 rounded-2xl shadow-lg border ${mobileThemeCardBorder} transform transition-all duration-300 active:scale-95 animate-fade-in-up`} style={{ animationDelay: '100ms' }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-7 h-7 rounded-full bg-blue-900/50 flex items-center justify-center">
+                <DollarSign size={14} className="text-blue-400" />
+              </div>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Revenue</p>
+            </div>
+            <p className="text-xl font-black text-white tracking-tighter pl-1">${((goals.deals * 1500) || 0).toLocaleString()}</p>
           </div>
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
-            <i className="fas fa-users text-orange-500 mb-2 text-lg"></i>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Leads</p>
-            <p className="text-xl font-black text-slate-800 tracking-tighter">14</p>
+
+          <div className={`bg-slate-900 p-3.5 rounded-2xl shadow-lg border ${mobileThemeCardBorder} transform transition-all duration-300 active:scale-95 animate-fade-in-up`} style={{ animationDelay: '200ms' }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-7 h-7 rounded-full bg-orange-900/50 flex items-center justify-center">
+                <Users size={14} className="text-orange-400" />
+              </div>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Leads</p>
+            </div>
+            <p className="text-xl font-black text-white tracking-tighter pl-1">14</p>
           </div>
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
-            <i className="fas fa-solar-panel text-green-500 mb-2 text-lg"></i>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Projects</p>
-            <p className="text-xl font-black text-slate-800 tracking-tighter">3</p>
+
+          <div className={`bg-slate-900 p-3.5 rounded-2xl shadow-lg border ${mobileThemeCardBorder} transform transition-all duration-300 active:scale-95 animate-fade-in-up`} style={{ animationDelay: '300ms' }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-7 h-7 rounded-full bg-green-900/50 flex items-center justify-center">
+                <Trophy size={14} className="text-green-400" />
+              </div>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Deals</p>
+            </div>
+            <p className={`text-xl font-black tracking-tighter pl-1 ${dealsNeeded === 0 ? 'text-yellow-400' : 'text-white'}`}>{goals.deals} <span className="text-xs text-slate-600 font-bold">/ {GOAL_DEALS}</span></p>
           </div>
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center">
-            <i className="fas fa-trophy text-yellow-500 mb-2 text-lg"></i>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rank</p>
-            <p className="text-xl font-black text-slate-800 tracking-tighter">#1</p>
+
+          <div className={`bg-slate-900 p-3.5 rounded-2xl shadow-lg border ${mobileThemeCardBorder} transform transition-all duration-300 active:scale-95 animate-fade-in-up`} style={{ animationDelay: '400ms' }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-7 h-7 rounded-full bg-red-900/50 flex items-center justify-center">
+                <Flame size={14} className="text-red-400" />
+              </div>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Streak</p>
+            </div>
+            <p className="text-xl font-black text-white tracking-tighter pl-1">{streak} <span className="text-xs text-slate-600 font-bold">Days</span></p>
           </div>
         </div>
 
-        <div className="px-5 mt-8">
-          <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-4">Recent Activity</h3>
-          <div className="space-y-3">
-            <div className="flex items-center gap-4 bg-white p-3 rounded-xl shadow-sm border border-slate-100">
-              <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center">
-                <CheckCircle size={18} className="text-green-500" />
+        {/* Activity Feed */}
+        <div className="px-5 mt-8 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
+          <div className="flex justify-between items-end mb-3 px-1">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-600">Recent Activity</h3>
+          </div>
+          <div className="space-y-2.5">
+            <div onClick={triggerHaptic} className="group flex items-center gap-3 bg-slate-900 p-3 rounded-2xl shadow-sm border border-slate-800 transition-all duration-300 active:scale-95 cursor-pointer hover:border-slate-700">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center shadow-inner group-active:scale-110 transition-transform">
+                <CheckCircle size={18} className="text-white drop-shadow-sm" />
               </div>
-              <div>
-                <p className="text-sm font-bold text-slate-800">Contract Signed</p>
-                <p className="text-xs text-slate-500">Canfield Project</p>
+              <div className="flex-1">
+                <p className="text-xs font-black text-slate-200">Contract Signed</p>
+                <p className="text-[10px] text-slate-500 font-medium mt-0.5">Canfield Project</p>
               </div>
+              <ChevronRight size={14} className="text-slate-700" />
             </div>
             
-            <div className="flex items-center gap-4 bg-white p-3 rounded-xl shadow-sm border border-slate-100">
-              <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center">
-                <FileText size={18} className="text-orange-500" />
+            <div onClick={triggerHaptic} className="group flex items-center gap-3 bg-slate-900 p-3 rounded-2xl shadow-sm border border-slate-800 transition-all duration-300 active:scale-95 cursor-pointer hover:border-slate-700">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center shadow-inner group-active:scale-110 transition-transform">
+                <FileText size={18} className="text-white drop-shadow-sm" />
               </div>
-              <div>
-                <p className="text-sm font-bold text-slate-800">Change Order</p>
-                <p className="text-xs text-slate-500">$9,000 Hydro One Fee</p>
+              <div className="flex-1">
+                <p className="text-xs font-black text-slate-200">Change Order</p>
+                <p className="text-[10px] text-slate-500 font-medium mt-0.5">$9,000 Hydro One Fee</p>
               </div>
-            </div>
-
-            <div className="flex items-center gap-4 bg-white p-3 rounded-xl shadow-sm border border-slate-100">
-              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                <Phone size={18} className="text-blue-500" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-800">Lead Called</p>
-                <p className="text-xs text-slate-500">Left voicemail</p>
-              </div>
+              <ChevronRight size={14} className="text-slate-700" />
             </div>
           </div>
         </div>
 
-        <div className="px-5 mt-8">
-          <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <button className="flex flex-col items-center justify-center bg-blue-900 text-white p-4 rounded-2xl shadow-md active:scale-95 transition-transform">
-              <Calculator size={24} className="mb-2 text-yellow-400" />
-              <span className="text-xs font-bold">New Quote</span>
-            </button>
-            <button className="flex flex-col items-center justify-center bg-white border border-slate-200 text-slate-800 p-4 rounded-2xl shadow-sm active:scale-95 transition-transform">
-              <UserPlus size={24} className="mb-2 text-blue-600" />
-              <span className="text-xs font-bold">Add Lead</span>
-            </button>
-            <button className="flex flex-col items-center justify-center bg-white border border-slate-200 text-slate-800 p-4 rounded-2xl shadow-sm active:scale-95 transition-transform">
-              <FileSignature size={24} className="mb-2 text-green-600" />
-              <span className="text-xs font-bold">Contract</span>
-            </button>
-            <button className="flex flex-col items-center justify-center bg-white border border-slate-200 text-slate-800 p-4 rounded-2xl shadow-sm active:scale-95 transition-transform">
-              <BookOpen size={24} className="mb-2 text-orange-500" />
-              <span className="text-xs font-bold">Training</span>
-            </button>
-          </div>
+        {/* CENTERED Floating Action Button (FAB) Overlay & Menu */}
+        {isFabOpen && (
+          <div 
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 transition-opacity animate-fade-in"
+            onClick={handleFabToggle}
+          ></div>
+        )}
+
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3">
+          {isFabOpen && (
+            <div className="flex flex-col items-center gap-3 mb-2 w-48">
+              
+              {/* --- TRAINING SUB-MENU --- */}
+              {fabMode === 'training' ? (
+                <>
+                  <button onClick={() => handleRoute('driller')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '0ms' }}>
+                    <div className="w-9 h-9 rounded-full bg-red-900/50 flex items-center justify-center shrink-0"><Mic size={16} className="text-red-400"/></div>
+                    <span className="text-xs font-bold tracking-wide">Audio Driller</span>
+                  </button>
+                  <button onClick={() => handleRoute('objection')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+                    <div className="w-9 h-9 rounded-full bg-purple-900/50 flex items-center justify-center shrink-0"><Shield size={16} className="text-purple-400"/></div>
+                    <span className="text-xs font-bold tracking-wide">Objection Buster</span>
+                  </button>
+                  <button onClick={() => handleRoute('script')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                    <div className="w-9 h-9 rounded-full bg-blue-900/50 flex items-center justify-center shrink-0"><MessageSquare size={16} className="text-blue-400"/></div>
+                    <span className="text-xs font-bold tracking-wide">Script Builder</span>
+                  </button>
+                  <button onClick={() => handleRoute('tech101')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+                    <div className="w-9 h-9 rounded-full bg-yellow-900/50 flex items-center justify-center shrink-0"><Sun size={16} className="text-yellow-400"/></div>
+                    <span className="text-xs font-bold tracking-wide">Solar Tech 101</span>
+                  </button>
+                  
+                  {/* Back to main FAB menu */}
+                  <button onClick={() => { triggerHaptic(); setFabMode('main') }} className="mt-2 flex items-center justify-center gap-2 bg-slate-900 text-slate-400 px-4 py-2 rounded-full border border-slate-800 active:scale-95 transition-transform animate-fade-in">
+                    <ArrowLeft size={14} /> <span className="text-[10px] font-bold uppercase tracking-wider">Back</span>
+                  </button>
+                </>
+              ) : (
+                /* --- MAIN FAB MENU --- */
+                <>
+                  <button onClick={() => { triggerHaptic(); setFabMode('training') }} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '0ms' }}>
+                    <div className="w-9 h-9 rounded-full bg-orange-900/50 flex items-center justify-center shrink-0"><BookOpen size={16} className="text-orange-400"/></div>
+                    <span className="text-xs font-bold tracking-wide">Training</span>
+                  </button>
+                  <button onClick={() => handleRoute('contract')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+                    <div className="w-9 h-9 rounded-full bg-green-900/50 flex items-center justify-center shrink-0"><FileSignature size={16} className="text-green-400"/></div>
+                    <span className="text-xs font-bold tracking-wide">Contract</span>
+                  </button>
+                  <button onClick={() => handleRoute('tracker')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                    <div className="w-9 h-9 rounded-full bg-blue-900/50 flex items-center justify-center shrink-0"><UserPlus size={16} className="text-blue-400"/></div>
+                    <span className="text-xs font-bold tracking-wide">Add Lead</span>
+                  </button>
+                  <button onClick={() => handleRoute('builder')} className="w-full flex items-center justify-start gap-3 bg-blue-900 text-white p-1.5 pr-4 rounded-full shadow-[0_0_15px_rgba(30,58,138,0.5)] border border-blue-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+                    <div className="w-9 h-9 rounded-full bg-yellow-400 flex items-center justify-center shrink-0"><Calculator size={16} className="text-blue-900"/></div>
+                    <span className="text-xs font-bold tracking-wide text-yellow-400">New Quote</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+          
+          <button 
+            onClick={handleFabToggle} 
+            className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(250,204,21,0.3)] active:scale-90 transition-all duration-300 z-50 relative ${isFabOpen ? 'bg-slate-800 text-slate-400 border border-slate-700 rotate-45' : 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-blue-900 rotate-0'}`}
+          >
+            <Plus size={28} className="fill-current" />
+          </button>
         </div>
+
       </div>
 
       {/* ========================================= */}
@@ -194,10 +299,11 @@ export default function Dashboard() {
       {/* ========================================= */}
       <div className="hidden md:block max-w-5xl mx-auto pb-12">
         <div className="animate-fade-in-up">
-          <h1 className="text-4xl font-black text-blue-900 mb-2">Welcome back, {profile?.full_name?.split(' ')[0] || 'Partner'}!</h1>
+          
+          <h1 className="text-4xl font-black text-blue-900 mb-2">Welcome back, {profile?.full_name?.split(' ')[0] || 'Mason'}!</h1>
           <p className="text-slate-500 text-lg mb-8">Ready to crush some doors today?</p>
           
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 animate-fade-in-up">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
             <h2 className="text-4xl font-black text-blue-900 flex items-center gap-3">
               Rep Dashboard
             </h2>
@@ -206,6 +312,7 @@ export default function Dashboard() {
                 <Flame className="text-orange-500 animate-pulse" size={18} />
                 <span className="text-sm font-black text-orange-600">{streak} Day Streak</span>
               </div>
+              
               <div className="flex bg-white shadow-sm border border-slate-200 rounded-xl p-1">
                 {['weekly', 'monthly'].map((p) => (
                   <button
@@ -220,7 +327,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Fixed Desktop Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
               <h3 className="font-bold text-slate-400 text-xs uppercase tracking-wider mb-2">Doors Knocked</h3>
@@ -232,15 +338,13 @@ export default function Dashboard() {
             </div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
               <h3 className="font-bold text-slate-400 text-xs uppercase tracking-wider mb-2">Potential Commission</h3>
-              <p className="text-3xl font-black text-green-600">$0.00</p>
+              <p className="text-3xl font-black text-green-600">${(goals.deals * 1500).toLocaleString()}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-            
             <div className="lg:col-span-2 space-y-6">
-              
-              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 animate-fade-in-up delay-100">
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="font-bold text-xl text-blue-900">Performance Tracking</h3>
                   <span className="text-xs font-bold text-slate-400 uppercase bg-slate-100 px-3 py-1 rounded-full">
@@ -250,12 +354,12 @@ export default function Dashboard() {
 
                 <div className="grid grid-cols-2 gap-6 mb-8">
                   {[{ type: 'knocks', label: 'Doors Knocked', color: 'blue' }, { type: 'apps', label: 'Appointments', color: 'yellow' }].map(({ type, label, color }) => (
-                    <div key={type} className={`space-y-2 bg-slate-50 p-5 rounded-2xl border border-slate-100 transition-all duration-300 hover:shadow-md hover:border-${color}-200 group`}>
+                    <div key={type} className={`space-y-2 bg-slate-50 p-5 rounded-2xl border border-slate-100 transition-all duration-300 hover:shadow-md group`}>
                       <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider group-hover:text-blue-900 transition-colors">{label}</label>
                       <div className="flex items-center justify-between">
-                        <button onClick={() => handleAdjust(type, -1)} className="w-10 h-10 rounded-full bg-white border border-slate-200 shadow-sm text-slate-600 font-bold hover:bg-slate-100 hover:text-red-500 transition-all transform active:scale-95">-</button>
+                        <button onClick={() => handleAdjust(type, -1)} className="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 hover:text-red-500 transition-all active:scale-95">-</button>
                         <span className="text-5xl font-black text-blue-900 tracking-tighter">{goals[type]}</span>
-                        <button onClick={() => handleAdjust(type, 1)} className="w-10 h-10 rounded-full bg-blue-900 text-white font-bold hover:bg-yellow-400 hover:text-blue-900 transition-all transform active:scale-95 shadow-md">+</button>
+                        <button onClick={() => handleAdjust(type, 1)} className="w-10 h-10 rounded-full bg-blue-900 text-white font-bold hover:bg-yellow-400 hover:text-blue-900 transition-all active:scale-95">+</button>
                       </div>
                     </div>
                   ))}
@@ -297,9 +401,10 @@ export default function Dashboard() {
                     })}
                   </div>
                 </div>
+
               </div>
 
-              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 animate-fade-in-up delay-200">
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
                 <div className="flex justify-between items-center mb-6">
                   <h4 className="text-sm font-black uppercase text-blue-900 tracking-wider">
                     <i className="fas fa-chart-pie text-yellow-500 mr-2"></i>Conversion Analytics
@@ -311,7 +416,6 @@ export default function Dashboard() {
                     <CircularProgress percentage={appRate} colorClass="text-blue-600" strokeColor="stroke-blue-500" label="Appt Rate" />
                     <CircularProgress percentage={closeRate} colorClass="text-green-600" strokeColor="stroke-green-500" label="Close Rate" />
                   </div>
-
                   <div className="space-y-4 pl-0 md:pl-2">
                     <div>
                       <div className="flex justify-between text-[10px] font-black text-slate-500 uppercase mb-1">
@@ -350,9 +454,9 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="space-y-6 animate-fade-in-up delay-300">
-              <div className="bg-blue-900 text-white p-8 rounded-3xl shadow-lg relative overflow-hidden group transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-                <i className="fas fa-lightbulb absolute -right-4 -bottom-4 text-8xl text-blue-800 opacity-50 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500"></i>
+            <div className="space-y-6">
+              <div className="bg-blue-900 text-white p-8 rounded-3xl shadow-lg relative overflow-hidden group">
+                <i className="fas fa-lightbulb absolute -right-4 -bottom-4 text-8xl text-blue-800 opacity-50 group-hover:scale-110 transition-transform"></i>
                 <h4 className="font-bold text-yellow-400 mb-4 uppercase text-xs tracking-widest flex items-center gap-2">
                   <Zap size={14} /> Mason's Tip
                 </h4>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { supabase } from '../../lib/supabase'
 
@@ -39,75 +40,113 @@ const MENU_GROUPS = [
 
 export default function Sidebar() {
   const { activeSection, setActiveSection } = useAppStore()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Helper to close menu on mobile after clicking a link
+  const handleNavigation = (id) => {
+    setActiveSection(id);
+    setIsMobileMenuOpen(false);
+  }
 
   return (
-    <aside className="w-64 bg-slate-900 text-white flex flex-col h-screen shadow-2xl relative z-20">
-      {/* Brand Header */}
-      <div className="p-6 border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-lg">
-            <i className="fas fa-bolt text-blue-900 font-black"></i>
+    <>
+      {/* MOBILE TOP BAR (Only visible on small screens) */}
+      <div className="md:hidden flex items-center justify-between bg-slate-900 text-white p-4 border-b border-slate-800 shadow-md relative z-30">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
+            <i className="fas fa-bolt text-blue-900 text-xs font-black"></i>
           </div>
-          <div>
-            <h1 className="font-black text-xl tracking-tighter uppercase">Stardust</h1>
-            <p className="text-[9px] text-yellow-400 font-bold tracking-widest uppercase mt-0.5">Field OS</p>
+          <h1 className="font-black text-lg tracking-tighter uppercase">Stardust</h1>
+        </div>
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="text-white hover:text-yellow-400 focus:outline-none p-2"
+        >
+          <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
+        </button>
+      </div>
+
+      {/* MOBILE OVERLAY (Darkens background when menu is open) */}
+      {isMobileMenuOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setIsMobileMenuOpen(false)}
+        ></div>
+      )}
+
+      {/* SIDEBAR (Responsive behavior) */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white flex flex-col h-screen shadow-2xl transition-transform duration-300 ease-in-out
+        md:relative md:translate-x-0
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        {/* Brand Header */}
+        <div className="p-6 border-b border-slate-800 hidden md:block">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-lg">
+              <i className="fas fa-bolt text-blue-900 font-black"></i>
+            </div>
+            <div>
+              <h1 className="font-black text-xl tracking-tighter uppercase">Stardust</h1>
+              <p className="text-[9px] text-yellow-400 font-bold tracking-widest uppercase mt-0.5">Field OS</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Navigation Groups */}
-      <nav className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
-        {MENU_GROUPS.map((group, groupIndex) => (
-          <div key={groupIndex} className="animate-fade-in-up" style={{ animationDelay: `${groupIndex * 100}ms` }}>
-            <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3 px-3">
-              {group.title}
-            </h3>
-            <ul className="space-y-1">
-              {group.items.map((item) => {
-                const isActive = activeSection === item.id
-                return (
-                  <li key={item.id}>
-                    <button
-                      onClick={() => setActiveSection(item.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 group ${
-                        isActive 
-                          ? 'bg-blue-900 text-yellow-400 shadow-md' 
-                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                      }`}
-                    >
-                      <i className={`${item.icon} w-5 text-center transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}></i>
-                      <span>{item.label}</span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))}
-      </nav>
+        {/* Navigation Groups */}
+        <nav className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+          {MENU_GROUPS.map((group, groupIndex) => (
+            <div key={groupIndex} className="animate-fade-in-up" style={{ animationDelay: `${groupIndex * 100}ms` }}>
+              <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3 px-3">
+                {group.title}
+              </h3>
+              <ul className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive = activeSection === item.id
+                  return (
+                    <li key={item.id}>
+                      <button
+                        onClick={() => handleNavigation(item.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 group ${
+                          isActive 
+                            ? 'bg-blue-900 text-yellow-400 shadow-md' 
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <i className={`${item.icon} w-5 text-center transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}></i>
+                        <span>{item.label}</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
 
-      {/* User Profile Footer */}
-      <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-        <button 
-          onClick={() => setActiveSection('welcome')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 transition-colors text-left"
-        >
-          <div className="w-8 h-8 rounded-full bg-blue-800 flex items-center justify-center text-white font-bold shadow-inner">
-            M
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white truncate">Mason Greene</p>
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider truncate">Temiskaming</p>
-          </div>
-          <i className="fas fa-cog text-slate-500 hover:text-white transition-colors"></i>
-        </button>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="text-[10px] font-bold text-blue-400 hover:text-white transition uppercase tracking-wider mt-2 w-full text-left px-3"
-        >
-          Sign out
-        </button>
-      </div>
-    </aside>
+        {/* User Profile Footer */}
+        <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+          <button 
+            onClick={() => handleNavigation('welcome')}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 transition-colors text-left"
+          >
+            <div className="w-8 h-8 rounded-full bg-blue-800 flex items-center justify-center text-white font-bold shadow-inner">
+              M
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white truncate">Mason Greene</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider truncate">Temiskaming</p>
+            </div>
+            <i className="fas fa-cog text-slate-500 hover:text-white transition-colors"></i>
+          </button>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="text-[10px] font-bold text-blue-400 hover:text-white transition uppercase tracking-wider mt-2 w-full text-left px-3"
+          >
+            Sign out
+          </button>
+        </div>
+      </aside>
+    </>
   )
 }
