@@ -5,7 +5,8 @@ import { useStreak } from '../../hooks/useStreak'
 import { 
   Target, TrendingUp, Zap, Flame, Award, Calculator, UserPlus, 
   FileSignature, BookOpen, Phone, CheckCircle, FileText, ChevronRight, 
-  DollarSign, Users, Sun, Trophy, Plus, Mic, MessageSquare, Shield, ArrowLeft 
+  DollarSign, Users, Sun, Trophy, Plus, Mic, MessageSquare, Shield, 
+  ArrowLeft, MapPin, PenTool, ClipboardCheck 
 } from 'lucide-react'
 
 const MAX_DEALS = 10
@@ -44,7 +45,7 @@ export default function Dashboard() {
   
   // FAB State Management
   const [isFabOpen, setIsFabOpen] = useState(false)
-  const [fabMode, setFabMode] = useState('main') // 'main' | 'training'
+  const [fabMode, setFabMode] = useState('main') // 'main' | 'training' | 'site'
 
   useEffect(() => { 
     loadGoals(); 
@@ -133,10 +134,11 @@ export default function Dashboard() {
     <div className="fixed inset-0 overflow-y-auto bg-slate-950 md:bg-slate-50 transition-colors duration-300">
 
       {/* ========================================= */}
-      {/* MOBILE ONLY VIEW (Untouched)              */}
+      {/* MOBILE ONLY VIEW                          */}
       {/* ========================================= */}
       <div className="block md:hidden bg-slate-950 min-h-screen pb-6 font-sans overflow-hidden text-slate-200">
         
+        {/* Dynamic Gamified Header */}
         <div className={`bg-gradient-to-b ${mobileThemeHeader} pt-8 pb-12 px-5 rounded-b-[2.5rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] relative z-10 transition-colors duration-1000 animate-fade-in-up`}>
           <div className={`absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 rounded-full ${mobileIconGlow} blur-3xl pointer-events-none transition-colors duration-1000`}></div>
           <div className="relative z-10">
@@ -149,6 +151,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Floating Metrics Grid */}
         <div className="grid grid-cols-2 gap-3 px-5 -mt-6 relative z-20">
           <div className={`bg-slate-900 p-3.5 rounded-2xl shadow-lg border ${mobileThemeCardBorder} transform transition-all duration-300 active:scale-95 animate-fade-in-up`} style={{ animationDelay: '100ms' }}>
             <div className="flex items-center gap-2 mb-1.5">
@@ -191,6 +194,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Activity Feed */}
         <div className="px-5 mt-8 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
           <div className="flex justify-between items-end mb-3 px-1">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-600">Recent Activity</h3>
@@ -220,6 +224,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* CENTERED Floating Action Button (FAB) Overlay & Menu */}
         {isFabOpen && (
           <div 
             className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 transition-opacity animate-fade-in"
@@ -231,7 +236,8 @@ export default function Dashboard() {
           {isFabOpen && (
             <div className="flex flex-col items-center gap-3 mb-2 w-48">
               
-              {fabMode === 'training' ? (
+              {/* --- TRAINING SUB-MENU --- */}
+              {fabMode === 'training' && (
                 <>
                   <button onClick={() => handleRoute('driller')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '0ms' }}>
                     <div className="w-9 h-9 rounded-full bg-red-900/50 flex items-center justify-center shrink-0"><Mic size={16} className="text-red-400"/></div>
@@ -250,25 +256,52 @@ export default function Dashboard() {
                     <span className="text-xs font-bold tracking-wide">Solar Tech 101</span>
                   </button>
                   
+                  {/* Back to main FAB menu */}
                   <button onClick={() => { triggerHaptic(); setFabMode('main') }} className="mt-2 flex items-center justify-center gap-2 bg-slate-900 text-slate-400 px-4 py-2 rounded-full border border-slate-800 active:scale-95 transition-transform animate-fade-in">
                     <ArrowLeft size={14} /> <span className="text-[10px] font-bold uppercase tracking-wider">Back</span>
                   </button>
                 </>
-              ) : (
+              )}
+
+              {/* --- SITE SUB-MENU --- */}
+              {fabMode === 'site' && (
+                <>
+                  <button onClick={() => handleRoute('survey')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '0ms' }}>
+                    <div className="w-9 h-9 rounded-full bg-teal-900/50 flex items-center justify-center shrink-0"><ClipboardCheck size={16} className="text-teal-400"/></div>
+                    <span className="text-xs font-bold tracking-wide">Site Survey</span>
+                  </button>
+                  <button onClick={() => handleRoute('sketch')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+                    <div className="w-9 h-9 rounded-full bg-indigo-900/50 flex items-center justify-center shrink-0"><PenTool size={16} className="text-indigo-400"/></div>
+                    <span className="text-xs font-bold tracking-wide">Site Sketch</span>
+                  </button>
+                  
+                  {/* Back to main FAB menu */}
+                  <button onClick={() => { triggerHaptic(); setFabMode('main') }} className="mt-2 flex items-center justify-center gap-2 bg-slate-900 text-slate-400 px-4 py-2 rounded-full border border-slate-800 active:scale-95 transition-transform animate-fade-in">
+                    <ArrowLeft size={14} /> <span className="text-[10px] font-bold uppercase tracking-wider">Back</span>
+                  </button>
+                </>
+              )}
+
+              {/* --- MAIN FAB MENU --- */}
+              {fabMode === 'main' && (
                 <>
                   <button onClick={() => { triggerHaptic(); setFabMode('training') }} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '0ms' }}>
                     <div className="w-9 h-9 rounded-full bg-orange-900/50 flex items-center justify-center shrink-0"><BookOpen size={16} className="text-orange-400"/></div>
                     <span className="text-xs font-bold tracking-wide">Training</span>
                   </button>
-                  <button onClick={() => handleRoute('contract')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+                  <button onClick={() => { triggerHaptic(); setFabMode('site') }} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+                    <div className="w-9 h-9 rounded-full bg-teal-900/50 flex items-center justify-center shrink-0"><MapPin size={16} className="text-teal-400"/></div>
+                    <span className="text-xs font-bold tracking-wide">Site</span>
+                  </button>
+                  <button onClick={() => handleRoute('contract')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '100ms' }}>
                     <div className="w-9 h-9 rounded-full bg-green-900/50 flex items-center justify-center shrink-0"><FileSignature size={16} className="text-green-400"/></div>
                     <span className="text-xs font-bold tracking-wide">Contract</span>
                   </button>
-                  <button onClick={() => handleRoute('tracker')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                  <button onClick={() => handleRoute('tracker')} className="w-full flex items-center justify-start gap-3 bg-slate-800 text-white p-1.5 pr-4 rounded-full shadow-lg border border-slate-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '150ms' }}>
                     <div className="w-9 h-9 rounded-full bg-blue-900/50 flex items-center justify-center shrink-0"><UserPlus size={16} className="text-blue-400"/></div>
                     <span className="text-xs font-bold tracking-wide">Add Lead</span>
                   </button>
-                  <button onClick={() => handleRoute('builder')} className="w-full flex items-center justify-start gap-3 bg-blue-900 text-white p-1.5 pr-4 rounded-full shadow-[0_0_15px_rgba(30,58,138,0.5)] border border-blue-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+                  <button onClick={() => handleRoute('builder')} className="w-full flex items-center justify-start gap-3 bg-blue-900 text-white p-1.5 pr-4 rounded-full shadow-[0_0_15px_rgba(30,58,138,0.5)] border border-blue-700 active:scale-95 transition-transform animate-fade-in-up" style={{ animationDelay: '200ms' }}>
                     <div className="w-9 h-9 rounded-full bg-yellow-400 flex items-center justify-center shrink-0"><Calculator size={16} className="text-blue-900"/></div>
                     <span className="text-xs font-bold tracking-wide text-yellow-400">New Quote</span>
                   </button>
@@ -323,7 +356,6 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
             <div className="lg:col-span-2 space-y-8">
               
-              {/* THEME FIX: Performance Tracking card now has border-t-blue-500 */}
               <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-200 border-t-4 border-t-blue-500">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="font-bold text-xl text-slate-900">Performance Tracking</h3>
@@ -384,7 +416,6 @@ export default function Dashboard() {
 
               </div>
 
-              {/* THEME FIX: Conversion Analytics card now has border-t-yellow-500 */}
               <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-slate-200 border-t-4 border-t-yellow-500">
                 <div className="flex justify-between items-center mb-6">
                   <h4 className="text-sm font-black uppercase text-slate-900 tracking-wider">

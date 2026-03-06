@@ -25,9 +25,11 @@ const SECTIONS = {
   
   // The Sales Toolkit
   sketcher: SiteSketcher,
+  sketch: SiteSketcher,    // <-- ADDED: Routes 'sketch' from Dashboard to SiteSketcher
   builder: EstimateBuilder,
   contract: ContractGenerator,
   fieldops: FieldOps,
+  survey: FieldOps,        // <-- ADDED: Routes 'survey' from Dashboard to FieldOps
   
   // The War Room
   driller: AudioDriller,
